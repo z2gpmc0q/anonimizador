@@ -8,7 +8,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     HOME=/tmp \
-    XDG_CACHE_HOME=/tmp/.cache
+    XDG_CACHE_HOME=/tmp/.cache \
+    HF_HOME=/srv/hf
 
 # OCR: Tesseract (español + catalán + inglés + detección de orientación) y Ghostscript para OCRmyPDF
 RUN apt-get update \
@@ -19,11 +20,20 @@ RUN apt-get update \
 
 WORKDIR /srv
 COPY requirements.txt .
-# Los modelos de spaCy (es/ca/en) se descargan AHORA (en la construcción); en ejecución no se conecta a nada
-RUN pip install -r requirements.txt \
+# Los modelos (spaCy es/ca/en y GLiNER) se descargan AHORA, al construir; en ejecución no se conecta a nada
+# PyTorch solo CPU (mucho más ligero que la versión con CUDA) para GLiNER
+RUN pip install --index-url https://download.pytorch.org/whl/cpu torch \
+ && pip install -r requirements.txt \
  && python -m spacy download es_core_news_lg \
  && python -m spacy download ca_core_news_md \
- && python -m spacy download en_core_web_md
+ && python -m spacy download en_core_web_md \
+ && python -c "from gliner import GLiNER; GLiNER.from_pretrained('urchade/gliner_multi_pii-v1')" \
+ && chmod -R a+rX /srv/hf
+
+# En ejecución, nada de descargas: todo debe estar ya en la imagen
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
+    HF_HUB_DISABLE_TELEMETRY=1
 
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin anon \
  && mkdir -p /data && chown 10001:10001 /data && chmod 700 /data

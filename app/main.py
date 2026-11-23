@@ -4,6 +4,7 @@ import os
 import re
 import secrets
 import shutil
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -27,6 +28,10 @@ if not USUARIO or len(CLAVE) < 12:
 
 DIR_TRABAJOS = DIR_DATOS / "trabajos"
 DIR_TRABAJOS.mkdir(parents=True, exist_ok=True)
+# Conversaciones: agrupan documentos que comparten marcadores
+DIR_CONV = DIR_DATOS / "conversaciones"
+DIR_CONV.mkdir(parents=True, exist_ok=True)
+_lock_conv = threading.Lock()
 # Listas editables desde la web; se guardan en el volumen de datos
 DIR_LISTAS = DIR_DATOS / "listas"
 DIR_LISTAS.mkdir(parents=True, exist_ok=True)
@@ -55,6 +60,29 @@ def _limpia_antiguos() -> None:
     for d in DIR_TRABAJOS.iterdir():
         if d.is_dir() and d.stat().st_mtime < limite:
             shutil.rmtree(d, ignore_errors=True)
+    for f in DIR_CONV.glob("*.json"):
+        if f.stat().st_mtime < limite:
+            f.unlink(missing_ok=True)
+
+
+def _ruta_conv(cid: str) -> Path:
+    if not RE_ID.match(cid):
+        raise HTTPException(400, "Identificador no válido")
+    f = DIR_CONV / f"{cid}.json"
+    if not f.is_file():
+        raise HTTPException(404, "Conversación no encontrada (puede haber caducado)")
+    return f
+
+
+def _lee_conv(cid: str) -> dict:
+    return json.loads(_ruta_conv(cid).read_text(encoding="utf-8"))
+
+
+def _guarda_conv(conv: dict) -> None:
+    conv["actualizado"] = time.time()
+    tmp = DIR_CONV / f"{conv['id']}.json.tmp"
+    tmp.write_text(json.dumps(conv, ensure_ascii=False, indent=1), encoding="utf-8")
+    tmp.replace(DIR_CONV / f"{conv['id']}.json")
 
 
 def _dir(job: str) -> Path:
@@ -85,8 +113,10 @@ def inicio():
 
 
 @app.post("/api/analizar", dependencies=[Depends(autentica)])
-def analizar(archivo: UploadFile = File(...), terminos: str = Form(""), idioma: str = Form("auto")):
+def analizar(archivo: UploadFile = File(...), terminos: str = Form(""), idioma: str = Form("auto"),
+             conversacion: str = Form(""), nombre_conversacion: str = Form("")):
     _limpia_antiguos()
+    conv = _lee_conv(conversacion) if conversacion else None
     nombre = Path(archivo.filename or "documento.pdf").name
     ext = Path(nombre).suffix.lower()
     if ext not in pipeline.EXT_ADMITIDAS:
@@ -119,8 +149,33 @@ def analizar(archivo: UploadFile = File(...), terminos: str = Form(""), idioma: 
     finally:
         original.unlink(missing_ok=True)  # el original no se conserva
 
+    with _lock_conv:
+        if conv is None:
+            conv = {"id": uuid.uuid4().hex, "creado": time.time(), "mapa": [], "documentos": [],
+                    "nombre": nombre_conversacion.strip()[:80] or f"{Path(nombre).stem} ({time.strftime('%d/%m %H:%M')})"}
+        else:
+            conv = _lee_conv(conv["id"])
+        conv["documentos"].append({"id": job, "nombre": nombre})
+        _guarda_conv(conv)
+
+    # Valores que ya tienen marcador en la conversación: se aplicarán siempre
+    texto = pipeline.texto_con_paginas(paginas)
+    previos = {seudo.normaliza(e["valor"]): e["marcador"] for e in conv["mapa"]}
+    for e in entidades:
+        if seudo.normaliza(e["valor"]) in previos:
+            e["marcador"] = previos.pop(seudo.normaliza(e["valor"]))
+            e["marcado"] = True
+    siguiente = max((e["id"] for e in entidades), default=-1) + 1
+    for m in conv["mapa"]:
+        if seudo.normaliza(m["valor"]) in previos and seudo.cuenta(texto, m["valor"]):
+            entidades.append({"id": siguiente, "valor": m["valor"], "tipo": m["tipo"], "score": 1.0,
+                              "origen": "conversación", "etiqueta": reglas.ETIQUETAS.get(m["tipo"], "DATO"),
+                              "apariciones": seudo.cuenta(texto, m["valor"]), "marcado": True,
+                              "marcador": m["marcador"]})
+            siguiente += 1
+
     info = {"id": job, "nombre": nombre, "creado": time.time(), "paginas": len(paginas), "ocr": ocr,
-            "idiomas": sorted(set(idiomas))}
+            "idiomas": sorted(set(idiomas)), "conversacion": conv["id"], "nombre_conversacion": conv["nombre"]}
     _escribe(d, "info.json", info)
     _escribe(d, "paginas.json", paginas)
     _escribe(d, "entidades.json", entidades)
@@ -145,7 +200,13 @@ def generar(job: str, p: PeticionGenerar):
             items.append({"valor": valor.strip(), "tipo": reglas.tipo_desde(tipo)})
 
     texto = pipeline.texto_con_paginas(paginas)
-    mapa = seudo.construye_mapa(texto, items)
+    cid = _lee(d, "info.json")["conversacion"]
+    with _lock_conv:
+        conv = _lee_conv(cid)
+        mapa_total = seudo.construye_mapa(texto, items, previo=conv["mapa"])
+        conv["mapa"] = [{k: e[k] for k in ("marcador", "valor", "tipo")} for e in mapa_total]
+        _guarda_conv(conv)
+    mapa = [e for e in mapa_total if e["apariciones"] > 0]   # lo que aparece en ESTE documento
     salida = seudo.aplica(texto, mapa)
     if p.instruccion:
         salida = seudo.INSTRUCCION_LLM + salida
@@ -173,32 +234,35 @@ def descargar(job: str, fichero: str):
     return FileResponse(d / fichero, filename=base + sufijo)
 
 
-@app.get("/api/trabajos", dependencies=[Depends(autentica)])
-def trabajos():
+@app.get("/api/conversaciones", dependencies=[Depends(autentica)])
+def conversaciones():
     _limpia_antiguos()
     out = []
-    for d in DIR_TRABAJOS.iterdir():
-        if (d / "mapa.json").is_file():
-            info = _lee(d, "info.json")
-            info["marcadores"] = len(_lee(d, "mapa.json"))
-            out.append(info)
-    return sorted(out, key=lambda i: i["creado"], reverse=True)
+    for f in DIR_CONV.glob("*.json"):
+        c = json.loads(f.read_text(encoding="utf-8"))
+        out.append({"id": c["id"], "nombre": c["nombre"], "actualizado": c["actualizado"],
+                    "documentos": [x["nombre"] for x in c["documentos"]], "marcadores": len(c["mapa"])})
+    return sorted(out, key=lambda c: c["actualizado"], reverse=True)
 
 
 class PeticionRestaurar(BaseModel):
     texto: str
 
 
-@app.post("/api/restaurar/{job}", dependencies=[Depends(autentica)])
-def restaurar(job: str, p: PeticionRestaurar):
-    d = _dir(job)
-    texto, desconocidos = seudo.restaura(p.texto, _lee(d, "mapa.json"))
+@app.post("/api/restaurar/{cid}", dependencies=[Depends(autentica)])
+def restaurar(cid: str, p: PeticionRestaurar):
+    texto, desconocidos = seudo.restaura(p.texto, _lee_conv(cid)["mapa"])
     return {"texto": texto, "desconocidos": desconocidos}
 
 
-@app.delete("/api/trabajos/{job}", dependencies=[Depends(autentica)])
-def borrar(job: str):
-    shutil.rmtree(_dir(job))
+@app.delete("/api/conversaciones/{cid}", dependencies=[Depends(autentica)])
+def borrar_conversacion(cid: str):
+    with _lock_conv:
+        conv = _lee_conv(cid)
+        for doc in conv["documentos"]:
+            if RE_ID.match(doc["id"]):
+                shutil.rmtree(DIR_TRABAJOS / doc["id"], ignore_errors=True)
+        _ruta_conv(cid).unlink()
     return {"ok": True}
 
 

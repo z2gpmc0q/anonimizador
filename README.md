@@ -14,7 +14,7 @@ PDF / foto ──► OCR (si es escaneado) ──► detección ──► TÚ RE
 
 | Marcador | Qué es | Cómo |
 |---|---|---|
-| `PERSONA` | Nombres y apellidos | Modelo de lenguaje (spaCy) + tu lista «Siempre anonimizar» |
+| `PERSONA` | Nombres y apellidos | spaCy + GLiNER + tu lista «Siempre anonimizar» |
 | `LUGAR` | Ciudades, países, lugares | Modelo de lenguaje |
 | `ORGANIZACION` | Empresas, organismos | Modelo de lenguaje (**desmarcado por defecto**) |
 | `DNI`, `NIE` | Documentos de identidad | Patrón + **letra de control verificada** |
@@ -27,7 +27,11 @@ PDF / foto ──► OCR (si es escaneado) ──► detección ──► TÚ RE
 
 Idiomas: **español** (modelo grande, máxima calidad), **catalán** e **inglés** (modelo mediano). El idioma se detecta automáticamente en cada página.
 
-**Memoria:** cada modelo de idioma se carga solo cuando aparece un documento en ese idioma y se libera tras 15 minutos sin uso (`IDLE_SECONDS`). En reposo el contenedor apenas ocupa RAM. El primer documento tras un rato sin usarlo tarda unos segundos más mientras carga el modelo. Las cifras reales de cada versión aparecen en el resumen de la ejecución en GitHub Actions.
+**Doble detector:** además de spaCy y las reglas, un segundo modelo especializado en datos personales, **GLiNER** (`urchade/gliner_multi_pii-v1`, Apache-2.0, multilingüe), repasa cada página. Encuentra nombres y direcciones que se le escapan al primero, sobre todo en mayúsculas o en tablas. En la tabla de revisión, lo que solo ha encontrado él aparece como «GLiNER». Se desactiva con `GLINER: "0"`.
+
+**Conversaciones:** los documentos que vayas a enviar al mismo chat de Claude o Gemini se agrupan en una conversación y **comparten marcadores**: si Laura es `[PERSONA_2]` en el contrato, también lo es en la factura. La respuesta se restaura eligiendo la conversación.
+
+**Memoria:** cada modelo (idioma y GLiNER) se carga solo cuando aparece un documento en ese idioma y se libera tras 15 minutos sin uso (`IDLE_SECONDS`). En reposo el contenedor apenas ocupa RAM. El primer documento tras un rato sin usarlo tarda unos segundos más mientras carga el modelo. Las cifras reales de cada versión aparecen en el resumen de la ejecución en GitHub Actions.
 
 ## Componentes (todos de código abierto)
 
@@ -38,6 +42,7 @@ Idiomas: **español** (modelo grande, máxima calidad), **catalán** e **inglés
 | OCRmyPDF + Tesseract | OCR de escaneados y fotos | ocrmypdf.readthedocs.io |
 | PyMuPDF | Tachado real (borra el texto, no solo lo tapa) | pymupdf.readthedocs.io |
 | Lingua | Detección de idioma, local | github.com/pemistahl/lingua-py |
+| GLiNER | Segundo detector de datos personales | github.com/urchade/GLiNER |
 | FastAPI | Servidor web | fastapi.tiangolo.com |
 
 El código propio está en `app/` (unas 1.000 líneas con la interfaz, comentadas), por si quieres revisarlo o que alguien lo audite.
@@ -101,18 +106,18 @@ Pulsa **Guardar listas**.
 
 ## Cómo se usa
 
-1. **Anonimizar**: sube el PDF o la foto, deja el idioma en *Automático* y pulsa **Analizar**. Un PDF digital tarda segundos; uno escaneado, aproximadamente 5–20 s por página.
+1. **Anonimizar**: elige **Nueva conversación** (o una existente si es para el mismo chat del LLM), sube el PDF o la foto, deja el idioma en *Automático* y pulsa **Analizar**. Un PDF digital tarda segundos; uno escaneado, aproximadamente 5–20 s por página.
 2. **Revisar**: aparece la lista de lo detectado. Desmarca lo que no sea personal y añade abajo lo que falte. Este paso es el importante.
 3. **Generar**: obtienes:
    - el **texto seudonimizado**, que es lo que copias al LLM (incluye una nota para que respete los marcadores);
    - el **PDF tachado**, por si necesitas adjuntar el documento visualmente;
    - un **aviso amarillo** si la verificación automática encuentra algún resto. En ese caso, no envíes nada sin revisarlo.
-4. **Restaurar**: pestaña *Restaurar respuesta*. Elige el documento, pega la respuesta del LLM y pulsa **Restaurar**: `[PERSONA_1]` vuelve a ser el nombre real. Esa respuesta restaurada **no** se la reenvíes al LLM.
+4. **Restaurar**: pestaña *Restaurar respuesta*. Elige la conversación, pega la respuesta del LLM y pulsa **Restaurar**: `[PERSONA_1]` vuelve a ser el nombre real. Esa respuesta restaurada **no** se la reenvíes al LLM.
 
 Consejos:
 - Envía al LLM **el texto**, no el PDF: es más fiable y el LLM lo procesa mejor.
 - El mismo valor siempre recibe el mismo marcador dentro de un documento, así que el LLM puede razonar («[PERSONA_1] le debe dinero a [PERSONA_2]»).
-- Los trabajos y sus tablas de correspondencias se borran solos a los **7 días** (`RETENTION_DAYS` en `docker-compose.yml`). Puedes borrarlos antes desde *Restaurar → Borrar trabajo*.
+- Los trabajos y sus tablas de correspondencias se borran solos a los **7 días** (`RETENTION_DAYS` en `docker-compose.yml`). Puedes borrarlos antes desde *Restaurar → Borrar conversación*.
 
 ## Limitaciones (léelas)
 
@@ -152,7 +157,8 @@ Lo único que hay en GitHub es el código y la imagen, públicos y sin datos tuy
 | «Fallo de OCR» | PDF dañado o con restricciones. Prueba a imprimirlo a PDF de nuevo. |
 | «El PDF está protegido con contraseña» | Quita la contraseña antes de subirlo. |
 | Se queda sin memoria | Sube `mem_limit` en el proyecto (tienes 24 GB de RAM). |
-| El primer análisis tarda más | Normal: está cargando el modelo de idioma. Si te molesta, sube `IDLE_SECONDS` (por ejemplo `3600`) o ponlo a `0` para no liberarlo nunca. |
+| El análisis tarda más que antes | GLiNER añade unos segundos por página. Si te sobra precisión y prefieres velocidad, pon `GLINER: "0"`. |
+| El primer análisis tarda más | Normal: está cargando los modelos. Si te molesta, sube `IDLE_SECONDS` (por ejemplo `3600`) o ponlo a `0` para no liberarlo nunca. |
 
 ## Pruebas
 

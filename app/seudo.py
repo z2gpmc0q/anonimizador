@@ -27,12 +27,23 @@ def cuenta(texto: str, valor: str) -> int:
     return len(regex_valor(valor).findall(texto))
 
 
-def construye_mapa(texto: str, items: list[dict]) -> list[dict]:
+def construye_mapa(texto: str, items: list[dict], previo: list[dict] | None = None) -> list[dict]:
     """items: [{valor, tipo}] -> [{marcador, valor, tipo, apariciones}].
 
-    Numera por tipo en orden de primera aparición; deduplica por valor normalizado.
+    `previo` es el mapa ya existente de la conversación: sus valores conservan su
+    marcador y la numeración continúa a partir del último de cada tipo. Los valores
+    nuevos se numeran por orden de primera aparición en `texto`.
+    El resultado incluye todo el mapa previo (con `apariciones` en este texto).
     """
-    vistos, candidatos = set(), []
+    previo = previo or []
+    mapa = [dict(e, apariciones=cuenta(texto, e["valor"])) for e in previo]
+    vistos = {normaliza(e["valor"]) for e in previo}
+    contadores: dict[str, int] = {}
+    for e in previo:
+        etiqueta, _, n = e["marcador"].rpartition("_")
+        contadores[etiqueta] = max(contadores.get(etiqueta, 0), int(n))
+
+    candidatos = []
     for it in items:
         valor = " ".join(it["valor"].split())
         clave = normaliza(valor)
@@ -45,8 +56,6 @@ def construye_mapa(texto: str, items: list[dict]) -> list[dict]:
         candidatos.append((m.start(), valor, it["tipo"]))
 
     candidatos.sort(key=lambda c: c[0])
-    contadores: dict[str, int] = {}
-    mapa = []
     for _, valor, tipo in candidatos:
         etiqueta = ETIQUETAS.get(tipo, "DATO")
         contadores[etiqueta] = contadores.get(etiqueta, 0) + 1

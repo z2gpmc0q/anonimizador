@@ -50,10 +50,10 @@ jobs:
           docker network create --internal sinred
           docker pull -q python:3.12-slim
           docker run -d --name anon --network sinred \
-            -e ANON_USER=ci -e ANON_PASSWORD=clave-de-prueba-ci -e IDLE_SECONDS=30 \
+            -e ANON_USER=ci -e ANON_PASSWORD=clave-de-prueba-ci -e IDLE_SECONDS=30 -e GLINER_HILOS=2 \
             --user 10001:10001 --read-only --tmpfs /tmp:size=2g,mode=1777 \
             --cap-drop ALL --security-opt no-new-privileges:true \
-            --pids-limit 256 --memory 4g --cpus 2 \
+            --pids-limit 256 --memory 5g --cpus 2 \
             -v anon_datos:/data \
             anonimizador:prueba
 
@@ -75,14 +75,14 @@ jobs:
           docker logs anon 2>&1 | grep -E "cargado|liberados" || true
           docker stats --no-stream --format 'Tras inactividad: {{.MemUsage}}' anon | tee -a ram.txt
           echo "### Uso de RAM" >> "$GITHUB_STEP_SUMMARY"; sed 's/^/- /' ram.txt >> "$GITHUB_STEP_SUMMARY"
-          # Comprobación: tras la inactividad debe quedar por debajo de 700 MiB
+          # Comprobación: tras la inactividad debe quedar por debajo de 1000 MiB
           python3 - <<'PY'
           import re
           ultima = open("ram.txt").read().strip().splitlines()[-1]
           valor, unidad = re.search(r"([\d.]+)\s*([KMG]i?B)", ultima).groups()
           mib = float(valor) * {"KiB": 1/1024, "MiB": 1, "GiB": 1024, "KB": 1/1024, "MB": 1, "GB": 1024}[unidad]
           print(f"RAM tras inactividad: {mib:.0f} MiB")
-          assert mib < 700, "Los modelos no se han liberado"
+          assert mib < 1000, "Los modelos no se han liberado"
           PY
 
       - name: Registro del contenedor si falla

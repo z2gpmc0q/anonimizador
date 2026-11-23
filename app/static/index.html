@@ -55,6 +55,13 @@
             <option value="es">Español</option><option value="ca">Català</option><option value="en">English</option>
           </select></label>
       </div>
+      <div class="fila">
+        <label class="mut" style="flex:1">Conversación
+          <select id="conv" onchange="$('nconv').classList.toggle('oculto', !!this.value)"></select></label>
+        <label class="mut" style="flex:1" id="nconv">Nombre (opcional)
+          <input type="text" id="nombre-conv" placeholder="p. ej. Alquiler piso Balmes"></label>
+      </div>
+      <p class="mut" style="margin:4px 0 0">Los documentos de una misma conversación comparten marcadores: la misma persona es siempre <code>[PERSONA_1]</code>. Usa una conversación por chat con Claude o Gemini.</p>
       <label class="lbl">Términos adicionales a anonimizar (uno por línea; opcional <code>texto;TIPO</code>, p. ej. <code>Ana López;PERSONA</code>)</label>
       <textarea id="terminos" rows="3"></textarea>
       <div class="fila"><button class="btn" id="b-analizar" onclick="analizar()">Analizar</button><span id="e-analizar" class="mut"></span></div>
@@ -69,7 +76,7 @@
         <button class="btn sec" onclick="marcarTodo(false)">Desmarcar todo</button>
       </div>
       <div class="tabla"><table>
-        <thead><tr><th></th><th>Valor detectado</th><th>Tipo</th><th>Veces</th><th>Confianza</th></tr></thead>
+        <thead><tr><th></th><th>Valor detectado</th><th>Tipo</th><th>Veces</th><th>Confianza / origen</th></tr></thead>
         <tbody id="tb-entidades"></tbody>
       </table></div>
       <label class="lbl">Añadir más (uno por línea, opcional <code>;TIPO</code>)</label>
@@ -100,12 +107,13 @@
   <div id="p-rest" class="oculto">
     <section class="card">
       <h2>Restaurar los datos reales en la respuesta del LLM</h2>
-      <label class="lbl">Documento original</label>
+      <label class="lbl">Conversación</label>
       <div class="fila" style="margin-top:0">
-        <select id="sel-trabajo" style="flex:1"></select>
-        <button class="btn sec" onclick="cargarTrabajos()">Recargar</button>
-        <button class="btn sec" onclick="borrarTrabajo()">Borrar trabajo</button>
+        <select id="sel-conv" style="flex:1" onchange="detalleConv()"></select>
+        <button class="btn sec" onclick="cargarConversaciones()">Recargar</button>
+        <button class="btn sec" onclick="borrarConversacion()">Borrar conversación</button>
       </div>
+      <p class="mut" id="det-conv" style="margin:6px 0 0"></p>
       <label class="lbl">Pega aquí la respuesta del LLM</label>
       <textarea id="respuesta" rows="10"></textarea>
       <div class="fila"><button class="btn" onclick="restaurar()">Restaurar</button></div>
@@ -135,13 +143,14 @@
 
 <script>
 let job = null, entidades = [];
+document.addEventListener('DOMContentLoaded', () => cargarConversaciones());
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const msg = (id, tipo, html) => { $(id).innerHTML = html ? `<div class="msg ${tipo}">${html}</div>` : ''; };
 
 function pestana(p) {
   for (const x of ['anon','rest','list']) { $('p-'+x).classList.toggle('oculto', x!==p); $('t-'+x).classList.toggle('on', x===p); }
-  if (p === 'rest') cargarTrabajos();
+  if (p === 'rest') cargarConversaciones();
   if (p === 'list') cargarListas();
 }
 
@@ -156,25 +165,29 @@ async function analizar() {
   const f = $('archivo').files[0];
   if (!f) return msg('m-analizar', 'err', 'Selecciona un archivo.');
   const fd = new FormData(); fd.append('archivo', f); fd.append('terminos', $('terminos').value); fd.append('idioma', $('idioma').value);
+  fd.append('conversacion', $('conv').value); fd.append('nombre_conversacion', $('nombre-conv').value);
   $('b-analizar').disabled = true; $('e-analizar').textContent = 'Procesando (los escaneados pueden tardar varios minutos)…';
   msg('m-analizar'); $('c-revision').classList.add('oculto'); $('c-resultado').classList.add('oculto');
   try {
     const d = await api('/api/analizar', { method: 'POST', body: fd });
     job = d.id; entidades = d.entidades;
-    msg('m-analizar', 'ok', `${d.paginas} página(s) · idioma: ${d.idiomas.join(', ')}${d.ocr ? ' · OCR aplicado' : ''} · ${entidades.length} valores detectados.`);
+    msg('m-analizar', 'ok', `Conversación «${esc(d.nombre_conversacion)}» · ${d.paginas} página(s) · idioma: ${d.idiomas.join(', ')}${d.ocr ? ' · OCR aplicado' : ''} · ${entidades.length} valores detectados.`);
+    const origen = e => e.marcador ? `ya es [${esc(e.marcador)}]` : e.origen === 'lista' ? 'lista'
+      : Math.round(e.score*100) + '%' + (e.origen === 'gliner' ? ' · GLiNER' : '');
     $('tb-entidades').innerHTML = entidades.map(e => `<tr>
-      <td><input type="checkbox" data-id="${e.id}" ${e.marcado ? 'checked' : ''}></td>
+      <td><input type="checkbox" data-id="${e.id}" ${e.marcado ? 'checked' : ''} ${e.marcador ? 'disabled title="Ya tiene marcador en esta conversación"' : ''}></td>
       <td>${esc(e.valor)}</td><td><span class="tag">${esc(e.etiqueta)}</span></td>
-      <td>${e.apariciones}</td><td>${e.origen === 'lista' ? 'lista' : Math.round(e.score*100)+'%'}</td></tr>`).join('');
+      <td>${e.apariciones}</td><td>${origen(e)}</td></tr>`).join('');
+    cargarConversaciones(d.conversacion);
     $('c-revision').classList.remove('oculto');
   } catch (e) { msg('m-analizar', 'err', esc(e.message)); }
   finally { $('b-analizar').disabled = false; $('e-analizar').textContent = ''; }
 }
 
-function marcarTodo(v) { document.querySelectorAll('#tb-entidades input').forEach(c => c.checked = v); }
+function marcarTodo(v) { document.querySelectorAll('#tb-entidades input:not(:disabled)').forEach(c => c.checked = v); }
 
 async function generar() {
-  const seleccion = [...document.querySelectorAll('#tb-entidades input:checked')].map(c => +c.dataset.id);
+  const seleccion = [...document.querySelectorAll('#tb-entidades input:checked:not(:disabled)')].map(c => +c.dataset.id);
   const extra = $('extra').value.split('\n').filter(s => s.trim());
   $('b-generar').disabled = true; $('e-generar').textContent = 'Generando…';
   try {
@@ -194,18 +207,31 @@ async function generar() {
   finally { $('b-generar').disabled = false; $('e-generar').textContent = ''; }
 }
 
-async function cargarTrabajos() {
+let convs = [];
+async function cargarConversaciones(elegida) {
   try {
-    const t = await api('/api/trabajos');
-    $('sel-trabajo').innerHTML = t.length ? t.map(x => `<option value="${x.id}">${esc(x.nombre)} — ${new Date(x.creado*1000).toLocaleString('es-ES')} (${x.marcadores} marcadores)</option>`).join('')
-      : '<option value="">No hay trabajos guardados</option>';
-    if (job && t.some(x => x.id === job)) $('sel-trabajo').value = job;
+    convs = await api('/api/conversaciones');
+    const fecha = c => new Date(c.actualizado*1000).toLocaleString('es-ES', {dateStyle:'short', timeStyle:'short'});
+    const opciones = convs.map(c => `<option value="${c.id}">${esc(c.nombre)} — ${c.documentos.length} doc. · ${fecha(c)}</option>`).join('');
+    const prev = $('conv').value;
+    $('conv').innerHTML = '<option value="">➕ Nueva conversación</option>' + opciones;
+    $('conv').value = elegida || (convs.some(c => c.id === prev) ? prev : '');
+    $('nconv').classList.toggle('oculto', !!$('conv').value);
+    const prevR = $('sel-conv').value;
+    $('sel-conv').innerHTML = opciones || '<option value="">No hay conversaciones guardadas</option>';
+    if (elegida || convs.some(c => c.id === prevR)) $('sel-conv').value = elegida || prevR;
+    detalleConv();
   } catch (e) { msg('m-rest', 'err', esc(e.message)); }
 }
 
+function detalleConv() {
+  const c = convs.find(c => c.id === $('sel-conv').value);
+  $('det-conv').textContent = c ? `Documentos: ${c.documentos.join(', ')} · ${c.marcadores} marcadores` : '';
+}
+
 async function restaurar() {
-  const id = $('sel-trabajo').value;
-  if (!id) return msg('m-rest', 'err', 'Selecciona un trabajo.');
+  const id = $('sel-conv').value;
+  if (!id) return msg('m-rest', 'err', 'Selecciona una conversación.');
   try {
     const d = await api(`/api/restaurar/${id}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ texto: $('respuesta').value }) });
     $('restaurado').value = d.texto;
@@ -215,10 +241,10 @@ async function restaurar() {
   } catch (e) { msg('m-rest', 'err', esc(e.message)); }
 }
 
-async function borrarTrabajo() {
-  const id = $('sel-trabajo').value;
-  if (!id || !confirm('¿Borrar este trabajo y su tabla de correspondencias? No se podrá restaurar después.')) return;
-  try { await api(`/api/trabajos/${id}`, { method: 'DELETE' }); if (id === job) job = null; cargarTrabajos(); msg('m-rest', 'ok', 'Borrado.'); }
+async function borrarConversacion() {
+  const id = $('sel-conv').value;
+  if (!id || !confirm('¿Borrar esta conversación, sus documentos y su tabla de correspondencias? No se podrá restaurar después.')) return;
+  try { await api(`/api/conversaciones/${id}`, { method: 'DELETE' }); cargarConversaciones(); msg('m-rest', 'ok', 'Borrada.'); }
   catch (e) { msg('m-rest', 'err', esc(e.message)); }
 }
 

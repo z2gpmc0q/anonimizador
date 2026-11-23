@@ -97,6 +97,24 @@ def test_seudonimizacion_ida_y_vuelta():
     assert desconocidos == ["PERSONA_9"]
 
 
+def test_conversacion_comparte_marcadores():
+    doc1 = "Contrato de Ana Ruiz con Pedro Gil, DNI 12345678Z."
+    mapa1 = seudo.construye_mapa(doc1, [
+        {"valor": "Ana Ruiz", "tipo": "PERSON"}, {"valor": "Pedro Gil", "tipo": "PERSON"},
+        {"valor": "12345678Z", "tipo": "ES_DNI"}])
+    doc2 = "Factura a nombre de Luis Mora. Pagador: Pedro Gil."
+    mapa2 = seudo.construye_mapa(doc2, [{"valor": "Luis Mora", "tipo": "PERSON"},
+                                        {"valor": "Pedro Gil", "tipo": "PERSON"}], previo=mapa1)
+    m = {e["valor"]: e["marcador"] for e in mapa2}
+    assert m["Ana Ruiz"] == "PERSONA_1" and m["Pedro Gil"] == "PERSONA_2"   # se conservan
+    assert m["Luis Mora"] == "PERSONA_3"                                     # continúa la numeración
+    assert m["12345678Z"] == "DNI_1"
+    anon2 = seudo.aplica(doc2, mapa2)
+    assert anon2 == "Factura a nombre de [PERSONA_3]. Pagador: [PERSONA_2]."
+    rest, _ = seudo.restaura("[PERSONA_1] y [PERSONA_3]", mapa2)
+    assert rest == "Ana Ruiz y Luis Mora"
+
+
 def test_no_toca_palabras_parciales():
     mapa = seudo.construye_mapa("Ana y Anabel", [{"valor": "Ana", "tipo": "PERSON"}])
     assert seudo.aplica("Ana y Anabel", mapa) == "[PERSONA_1] y Anabel"

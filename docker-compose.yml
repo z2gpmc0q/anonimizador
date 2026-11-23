@@ -10,7 +10,8 @@ services:
       ANON_PASSWORD: "CAMBIA-ESTO-por-una-clave-larga"   # mínimo 12 caracteres, distinta a la del NAS
       RETENTION_DAYS: "7"        # días que se guardan los trabajos y sus tablas de correspondencias
       MAX_MB: "50"
-      IDLE_SECONDS: "900"        # libera los modelos de idioma tras 15 min sin uso (0 = nunca)
+      IDLE_SECONDS: "900"        # libera los modelos tras 15 min sin uso (0 = nunca)
+      GLINER: "1"                # segundo detector de datos personales (0 = desactivado)
     ports:
       - "8010:8010"              # 8000 = Paperless, 2283 = Immich. NO abrir en el router.
     volumes:
@@ -24,7 +25,7 @@ services:
     security_opt:
       - no-new-privileges:true
     pids_limit: 256
-    mem_limit: 4g                # techo; en reposo usa mucho menos (modelos bajo demanda)
+    mem_limit: 5g                # techo; en reposo usa mucho menos (modelos bajo demanda)
     cpus: 2.0
     logging:
       driver: json-file

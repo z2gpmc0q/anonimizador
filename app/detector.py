@@ -34,6 +34,26 @@ MODELOS_SPACY = {"es": "es_core_news_lg", "ca": "ca_core_news_md", "en": "en_cor
 IDIOMAS = tuple(MODELOS_SPACY)
 UMBRAL = 0.4
 TIPOS_NER = {"PERSON", "LOCATION", "ORGANIZATION"}
+# Segundo detector: GLiNER multilingüe especializado en datos personales (Apache-2.0)
+GLINER_ACTIVO = os.environ.get("GLINER", "1") != "0"
+GLINER_MODELO = "urchade/gliner_multi_pii-v1"
+GLINER_UMBRAL = float(os.environ.get("GLINER_UMBRAL", "0.5"))
+GLINER_HILOS = int(os.environ.get("GLINER_HILOS", "2"))
+# Etiqueta que se le pide a GLiNER -> tipo interno
+GLINER_ETIQUETAS = {
+    "person": "PERSON",
+    "full address": "ES_DIRECCION",
+    "phone number": "PHONE_NUMBER",
+    "email": "EMAIL_ADDRESS",
+    "passport number": "DATO",
+    "identity card number": "DATO",
+    "social security number": "ES_NSS",
+    "bank account number": "IBAN_CODE",
+    "date of birth": "FECHA",
+    "license plate number": "ES_MATRICULA",
+}
+GLINER_PALABRAS_TROZO = 220   # el modelo admite ~384 subpalabras; trozos con margen
+GLINER_SOLAPE = 30
 # Segundos sin uso tras los que se liberan los modelos (0 = no liberar nunca)
 IDLE_SECONDS = int(os.environ.get("IDLE_SECONDS", "900"))
 log = logging.getLogger("uvicorn.error")
@@ -103,6 +123,29 @@ def _crea_motor(idioma: str) -> AnalyzerEngine:
     return AnalyzerEngine(registry=registro, nlp_engine=nlp, supported_languages=[idioma])
 
 
+def _carga_gliner():
+    import torch  # importación diferida: solo ocupa memoria si se usa
+    from gliner import GLiNER
+
+    torch.set_num_threads(GLINER_HILOS)
+    modelo = GLiNER.from_pretrained(GLINER_MODELO, local_files_only=True)
+    modelo.eval()
+    return modelo
+
+
+def _trozos(texto: str):
+    """Divide en trozos de ~GLINER_PALABRAS_TROZO palabras con solape; devuelve (inicio, fin)."""
+    palabras = [m.span() for m in re.finditer(r"\S+", texto)]
+    paso = GLINER_PALABRAS_TROZO - GLINER_SOLAPE
+    for i in range(0, max(len(palabras), 1), paso):
+        grupo = palabras[i:i + GLINER_PALABRAS_TROZO]
+        if not grupo:
+            break
+        yield grupo[0][0], grupo[-1][1]
+        if i + GLINER_PALABRAS_TROZO >= len(palabras):
+            break
+
+
 def _devuelve_memoria_al_sistema() -> None:
     """Python no siempre devuelve al sistema la memoria liberada; malloc_trim lo fuerza."""
     gc.collect()
@@ -162,6 +205,20 @@ class Detector:
             log.info("Modelo '%s' cargado en %.1f s", idioma, time.monotonic() - t0)
         return self._motores[idioma]
 
+    def _gliner(self):
+        if "gliner" not in self._motores:
+            t0 = time.monotonic()
+            self._motores["gliner"] = _carga_gliner()
+            log.info("Modelo 'gliner' cargado en %.1f s", time.monotonic() - t0)
+        return self._motores["gliner"]
+
+    def _analiza_gliner(self, texto: str):
+        modelo = self._gliner()
+        etiquetas = list(GLINER_ETIQUETAS)
+        for ini, fin in _trozos(texto):
+            for e in modelo.predict_entities(texto[ini:fin], etiquetas, threshold=GLINER_UMBRAL):
+                yield texto[ini + e["start"]:ini + e["end"]], GLINER_ETIQUETAS[e["label"]], float(e["score"])
+
     def _vigila_inactividad(self) -> None:
         while True:
             time.sleep(min(60, max(5, IDLE_SECONDS // 4)))
@@ -193,6 +250,8 @@ class Detector:
             if clave in permitidos or _es_basura(valor, tipo):
                 return
             e = agrupado.get(clave)
+            if e is not None and e["tipo"] in reglas.VALIDADORES and origen == "gliner":
+                return  # un DNI/NIE/NSS validado por su dígito de control manda
             if e is None or score > e["score"]:
                 agrupado[clave] = {"valor": valor, "tipo": tipo, "score": round(score, 2), "origen": origen}
 
@@ -205,6 +264,9 @@ class Detector:
                 idiomas.append(lang)
                 for r in self._motor(lang).analyze(text=texto, language=lang, score_threshold=UMBRAL):
                     _anota(texto[r.start:r.end], r.entity_type, r.score, "auto")
+                if GLINER_ACTIVO:
+                    for valor, tipo, score in self._analiza_gliner(texto):
+                        _anota(valor, tipo, score, "gliner")
             self._ultimo_uso = time.monotonic()
 
         fijos = _lee_lista(self._dir_config / "terminos.txt")

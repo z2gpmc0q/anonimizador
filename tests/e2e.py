@@ -63,14 +63,15 @@ def espera_salud():
     sys.exit("El contenedor no respondió en /salud")
 
 
-def analiza_y_genera(archivo: Path, idioma="auto"):
-    cuerpo, tipo = multipart(archivo, {"terminos": "", "idioma": idioma})
+def analiza_y_genera(archivo: Path, idioma="auto", conversacion=""):
+    cuerpo, tipo = multipart(archivo, {"terminos": "", "idioma": idioma, "conversacion": conversacion,
+                                       "nombre_conversacion": "Prueba CI"})
     t0 = time.time()
     st, a = peticion("POST", "/api/analizar", cuerpo, tipo)
     comprueba(st == 200, f"{archivo.name}: análisis responde 200 ({time.time() - t0:.1f} s) {'' if st == 200 else a}")
     if st != 200:
         return None, None
-    seleccion = [e["id"] for e in a["entidades"] if e["marcado"]]
+    seleccion = [e["id"] for e in a["entidades"] if e["marcado"] and not e.get("marcador")]
     st, g = peticion("POST", f"/api/generar/{a['id']}",
                      json.dumps({"seleccion": seleccion, "extra": [], "instruccion": True}).encode(),
                      "application/json")
@@ -118,13 +119,24 @@ if a and g:
     comprueba(st == 200 and pdf[:4] == b"%PDF", "descarga del PDF tachado")
     comprueba(b"Laura" not in pdf and b"45127839" not in pdf, "PDF tachado sin datos ni metadatos en claro")
     respuesta = "Según el contrato, [PERSONA_1] y PERSONA_2 firman; DNI [DNI_1]."
-    st, r = peticion("POST", f"/api/restaurar/{a['id']}", json.dumps({"texto": respuesta}).encode(), "application/json")
+    st, r = peticion("POST", f"/api/restaurar/{a['conversacion']}", json.dumps({"texto": respuesta}).encode(),
+                     "application/json")
     real = {m["marcador"]: m["valor"] for m in g["mapa"]}
     comprueba(st == 200 and real["DNI_1"] in r["texto"] and real["PERSONA_2"] in r["texto"], "restauración")
+    marcador_dni = {m["valor"]: m["marcador"] for m in g["mapa"]}.get("45127839E")
+    conv1 = a["conversacion"]
+    st, salud = peticion("GET", "/salud", auth=False)
+    comprueba("gliner" in salud.get("modelos_cargados", []), f"GLiNER cargado {salud.get('modelos_cargados')}")
+    print("  INFO  detecciones aportadas por GLiNER:",
+          [e["valor"] for e in a["entidades"] if e["origen"] == "gliner"])
 
-print("\n[Imagen escaneada]")
-a, g = analiza_y_genera(FIX / "contrato_escaneado.png")
+print("\n[Imagen escaneada, en la MISMA conversación]")
+a, g = analiza_y_genera(FIX / "contrato_escaneado.png", conversacion=conv1)
 if a and g:
+    comprueba(a["conversacion"] == conv1, "se añade a la conversación existente")
+    previo = {e["valor"]: e.get("marcador") for e in a["entidades"]}
+    comprueba(previo.get("45127839E") == marcador_dni, f"el DNI conserva su marcador ({marcador_dni})")
+    comprueba(f"[{marcador_dni}]" in g["texto"], "el texto usa el mismo marcador que el primer documento")
     valores = {e["valor"] for e in a["entidades"]}
     comprueba(a["ocr"] is True, "aplica OCR")
     comprueba("45127839E" in valores, "detecta DNI tras OCR")
@@ -133,11 +145,13 @@ if a and g:
     comprueba(not g["avisos"], f"sin avisos de tachado {g['avisos']}")
 
 print("\n[Limpieza]")
-st, t = peticion("GET", "/api/trabajos")
-comprueba(st == 200 and len(t) >= 2, "lista de trabajos")
-for job in t:
-    st, _ = peticion("DELETE", f"/api/trabajos/{job['id']}")
-comprueba(st == 200, "borrar trabajos")
+st, t = peticion("GET", "/api/conversaciones")
+comprueba(st == 200 and len(t) == 1 and len(t[0]["documentos"]) == 2, "una conversación con 2 documentos")
+for c in t:
+    st, _ = peticion("DELETE", f"/api/conversaciones/{c['id']}")
+comprueba(st == 200, "borrar conversación")
+st, t = peticion("GET", "/api/conversaciones")
+comprueba(st == 200 and t == [], "no queda nada")
 
 print(f"\n{'TODO CORRECTO' if not fallos else f'{len(fallos)} FALLO(S)'}")
 sys.exit(1 if fallos else 0)
