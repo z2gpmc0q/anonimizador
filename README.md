@@ -27,6 +27,8 @@ PDF / foto ──► OCR (si es escaneado) ──► detección ──► TÚ RE
 
 Idiomas: **español** (modelo grande, máxima calidad), **catalán** e **inglés** (modelo mediano). El idioma se detecta automáticamente en cada página.
 
+**Memoria:** cada modelo de idioma se carga solo cuando aparece un documento en ese idioma y se libera tras 15 minutos sin uso (`IDLE_SECONDS`). En reposo el contenedor apenas ocupa RAM. El primer documento tras un rato sin usarlo tarda unos segundos más mientras carga el modelo. Las cifras reales de cada versión aparecen en el resumen de la ejecución en GitHub Actions.
+
 ## Componentes (todos de código abierto)
 
 | Pieza | Para qué | Proyecto |
@@ -150,6 +152,7 @@ Lo único que hay en GitHub es el código y la imagen, públicos y sin datos tuy
 | «Fallo de OCR» | PDF dañado o con restricciones. Prueba a imprimirlo a PDF de nuevo. |
 | «El PDF está protegido con contraseña» | Quita la contraseña antes de subirlo. |
 | Se queda sin memoria | Sube `mem_limit` en el proyecto (tienes 24 GB de RAM). |
+| El primer análisis tarda más | Normal: está cargando el modelo de idioma. Si te molesta, sube `IDLE_SECONDS` (por ejemplo `3600`) o ponlo a `0` para no liberarlo nunca. |
 
 ## Pruebas
 

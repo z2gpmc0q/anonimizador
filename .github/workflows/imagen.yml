@@ -50,21 +50,40 @@ jobs:
           docker network create --internal sinred
           docker pull -q python:3.12-slim
           docker run -d --name anon --network sinred \
-            -e ANON_USER=ci -e ANON_PASSWORD=clave-de-prueba-ci \
+            -e ANON_USER=ci -e ANON_PASSWORD=clave-de-prueba-ci -e IDLE_SECONDS=30 \
             --user 10001:10001 --read-only --tmpfs /tmp:size=2g,mode=1777 \
             --cap-drop ALL --security-opt no-new-privileges:true \
-            --pids-limit 256 --memory 6g --cpus 2 \
+            --pids-limit 256 --memory 4g --cpus 2 \
             -v anon_datos:/data \
             anonimizador:prueba
+
+      - name: RAM en reposo al arrancar
+        run: |
+          sleep 15
+          docker stats --no-stream --format 'Arranque: {{.MemUsage}}' anon | tee -a ram.txt
 
       - name: Prueba de extremo a extremo sin Internet (PDF digital es/ca/en + escaneado con OCR)
         run: |
           docker run --rm --network sinred -v "$PWD/tests:/tests:ro" python:3.12-slim \
             python3 /tests/e2e.py http://anon:8010 ci clave-de-prueba-ci
 
-      - name: Uso de memoria del contenedor
-        if: always()
-        run: docker stats --no-stream anon || true
+      - name: RAM con los modelos cargados, y tras la inactividad (debe bajar)
+        run: |
+          docker stats --no-stream --format 'Modelos cargados: {{.MemUsage}}' anon | tee -a ram.txt
+          echo "Esperando a que se liberen los modelos por inactividad..."
+          sleep 75
+          docker logs anon 2>&1 | grep -E "cargado|liberados" || true
+          docker stats --no-stream --format 'Tras inactividad: {{.MemUsage}}' anon | tee -a ram.txt
+          echo "### Uso de RAM" >> "$GITHUB_STEP_SUMMARY"; sed 's/^/- /' ram.txt >> "$GITHUB_STEP_SUMMARY"
+          # Comprobación: tras la inactividad debe quedar por debajo de 700 MiB
+          python3 - <<'PY'
+          import re
+          ultima = open("ram.txt").read().strip().splitlines()[-1]
+          valor, unidad = re.search(r"([\d.]+)\s*([KMG]i?B)", ultima).groups()
+          mib = float(valor) * {"KiB": 1/1024, "MiB": 1, "GiB": 1024, "KB": 1/1024, "MB": 1, "GB": 1024}[unidad]
+          print(f"RAM tras inactividad: {mib:.0f} MiB")
+          assert mib < 700, "Los modelos no se han liberado"
+          PY
 
       - name: Registro del contenedor si falla
         if: failure()

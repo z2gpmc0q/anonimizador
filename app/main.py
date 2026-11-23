@@ -76,7 +76,7 @@ def _escribe(d: Path, nombre: str, datos) -> None:
 
 @app.get("/salud", include_in_schema=False)
 def salud():
-    return {"ok": True}
+    return {"ok": True, "modelos_cargados": detector.modelos_cargados()}
 
 
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(autentica)])

@@ -1,6 +1,16 @@
-"""Detección de datos personales con Presidio + spaCy (español) + reglas propias."""
+"""Detección de datos personales con Presidio + spaCy (es/ca/en) + reglas propias.
+
+Gestión de memoria: cada idioma tiene su propio motor, que se carga solo cuando
+aparece una página en ese idioma y se descarga tras un tiempo sin uso
+(IDLE_SECONDS). En reposo el contenedor apenas ocupa memoria.
+"""
+import ctypes
+import gc
+import logging
+import os
 import re
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +34,9 @@ MODELOS_SPACY = {"es": "es_core_news_lg", "ca": "ca_core_news_md", "en": "en_cor
 IDIOMAS = tuple(MODELOS_SPACY)
 UMBRAL = 0.4
 TIPOS_NER = {"PERSON", "LOCATION", "ORGANIZATION"}
+# Segundos sin uso tras los que se liberan los modelos (0 = no liberar nunca)
+IDLE_SECONDS = int(os.environ.get("IDLE_SECONDS", "900"))
+log = logging.getLogger("uvicorn.error")
 
 
 class _ReconocedorValidado(PatternRecognizer):
@@ -37,10 +50,11 @@ class _ReconocedorValidado(PatternRecognizer):
         return self._validador(pattern_text)
 
 
-def _crea_motor() -> AnalyzerEngine:
+def _crea_motor(idioma: str) -> AnalyzerEngine:
+    """Motor de un único idioma (solo carga el modelo de spaCy de ese idioma)."""
     conf = {
         "nlp_engine_name": "spacy",
-        "models": [{"lang_code": l, "model_name": m} for l, m in MODELOS_SPACY.items()],
+        "models": [{"lang_code": idioma, "model_name": MODELOS_SPACY[idioma]}],
         "ner_model_configuration": {
             # es/ca usan PER/LOC/ORG; en usa PERSON/GPE/LOC/FAC/ORG
             "model_to_presidio_entity_mapping": {
@@ -57,37 +71,45 @@ def _crea_motor() -> AnalyzerEngine:
     nlp = NlpEngineProvider(nlp_configuration=conf).create_engine()
 
     try:
-        registro = RecognizerRegistry(supported_languages=list(IDIOMAS))
+        registro = RecognizerRegistry(supported_languages=[idioma])
     except TypeError:  # versiones antiguas de Presidio
         registro = RecognizerRegistry()
 
     ctx = reglas.CONTEXTO
-    for idioma in IDIOMAS:
-        registro.add_recognizer(SpacyRecognizer(supported_language=idioma, supported_entities=sorted(TIPOS_NER)))
-        registro.add_recognizer(IbanRecognizer(supported_language=idioma, context=ctx["IBAN_CODE"]))
-        registro.add_recognizer(CreditCardRecognizer(supported_language=idioma, context=ctx["CREDIT_CARD"]))
-        registro.add_recognizer(IpRecognizer(supported_language=idioma))
-        registro.add_recognizer(PhoneRecognizer(
-            supported_language=idioma, supported_regions=("ES", "AD", "FR", "GB", "US"),
-            context=ctx["PHONE_NUMBER"],
-        ))
-        for entidad, patrones in reglas.PATRONES.items():
-            for nombre, regex, score, flags in patrones:
-                kw = dict(
-                    supported_entity=entidad,
-                    patterns=[Pattern(name=nombre, regex=regex, score=score)],
-                    context=ctx.get(entidad),
-                    supported_language=idioma,
-                    name=f"{entidad}_{nombre}_{idioma}",
-                )
-                if flags is not None:
-                    kw["global_regex_flags"] = flags
-                if entidad in reglas.VALIDADORES:
-                    registro.add_recognizer(_ReconocedorValidado(reglas.VALIDADORES[entidad], **kw))
-                else:
-                    registro.add_recognizer(PatternRecognizer(**kw))
+    registro.add_recognizer(SpacyRecognizer(supported_language=idioma, supported_entities=sorted(TIPOS_NER)))
+    registro.add_recognizer(IbanRecognizer(supported_language=idioma, context=ctx["IBAN_CODE"]))
+    registro.add_recognizer(CreditCardRecognizer(supported_language=idioma, context=ctx["CREDIT_CARD"]))
+    registro.add_recognizer(IpRecognizer(supported_language=idioma))
+    registro.add_recognizer(PhoneRecognizer(
+        supported_language=idioma, supported_regions=("ES", "AD", "FR", "GB", "US"),
+        context=ctx["PHONE_NUMBER"],
+    ))
+    for entidad, patrones in reglas.PATRONES.items():
+        for nombre, regex, score, flags in patrones:
+            kw = dict(
+                supported_entity=entidad,
+                patterns=[Pattern(name=nombre, regex=regex, score=score)],
+                context=ctx.get(entidad),
+                supported_language=idioma,
+                name=f"{entidad}_{nombre}_{idioma}",
+            )
+            if flags is not None:
+                kw["global_regex_flags"] = flags
+            if entidad in reglas.VALIDADORES:
+                registro.add_recognizer(_ReconocedorValidado(reglas.VALIDADORES[entidad], **kw))
+            else:
+                registro.add_recognizer(PatternRecognizer(**kw))
 
-    return AnalyzerEngine(registry=registro, nlp_engine=nlp, supported_languages=list(IDIOMAS))
+    return AnalyzerEngine(registry=registro, nlp_engine=nlp, supported_languages=[idioma])
+
+
+def _devuelve_memoria_al_sistema() -> None:
+    """Python no siempre devuelve al sistema la memoria liberada; malloc_trim lo fuerza."""
+    gc.collect()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except OSError:
+        pass
 
 
 _LINGUA = {"SPANISH": "es", "CATALAN": "ca", "ENGLISH": "en"}
@@ -124,10 +146,34 @@ def _es_basura(valor: str, tipo: str) -> bool:
 
 class Detector:
     def __init__(self, dir_config: Path):
-        self._motor = _crea_motor()
+        self._motores: dict[str, AnalyzerEngine] = {}
         self._idioma = _crea_detector_idioma()
         self._lock = threading.Lock()
         self._dir_config = dir_config
+        self._ultimo_uso = time.monotonic()
+        if IDLE_SECONDS > 0:
+            threading.Thread(target=self._vigila_inactividad, daemon=True).start()
+
+    def _motor(self, idioma: str) -> AnalyzerEngine:
+        """Devuelve el motor del idioma, cargándolo si hace falta (llamar con el lock)."""
+        if idioma not in self._motores:
+            t0 = time.monotonic()
+            self._motores[idioma] = _crea_motor(idioma)
+            log.info("Modelo '%s' cargado en %.1f s", idioma, time.monotonic() - t0)
+        return self._motores[idioma]
+
+    def _vigila_inactividad(self) -> None:
+        while True:
+            time.sleep(min(60, max(5, IDLE_SECONDS // 4)))
+            with self._lock:
+                if self._motores and time.monotonic() - self._ultimo_uso > IDLE_SECONDS:
+                    cargados = ", ".join(self._motores)
+                    self._motores.clear()
+                    _devuelve_memoria_al_sistema()
+                    log.info("Modelos liberados por inactividad: %s", cargados)
+
+    def modelos_cargados(self) -> list[str]:
+        return sorted(self._motores)
 
     def idioma_de(self, texto: str, defecto: str = "es") -> str:
         if len(texto.strip()) < 30:
@@ -157,8 +203,9 @@ class Detector:
                     continue
                 lang = idioma if idioma in IDIOMAS else self.idioma_de(texto)
                 idiomas.append(lang)
-                for r in self._motor.analyze(text=texto, language=lang, score_threshold=UMBRAL):
+                for r in self._motor(lang).analyze(text=texto, language=lang, score_threshold=UMBRAL):
                     _anota(texto[r.start:r.end], r.entity_type, r.score, "auto")
+            self._ultimo_uso = time.monotonic()
 
         fijos = _lee_lista(self._dir_config / "terminos.txt")
         fijos += [(t.partition(";")[0].strip(), reglas.tipo_desde(t.partition(";")[2]))
