@@ -1,8 +1,8 @@
 # Anonimizador local de documentos — para pegar en UGOS: Docker → Proyecto → Crear
-# Cambia TU_USUARIO_GITHUB y la contraseña antes de desplegar.
+# Antes de desplegar, cambia ANON_PASSWORD.
 services:
   anonimizador:
-    image: ghcr.io/TU_USUARIO_GITHUB/anonimizador:latest
+    image: ghcr.io/z2gpmc0q/anonimizador:latest
     container_name: anonimizador
     restart: unless-stopped
     environment:

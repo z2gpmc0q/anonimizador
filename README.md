@@ -50,7 +50,7 @@ Cada vez que cambia el código, y además cada lunes para recoger parches de seg
 2. construye la imagen con los modelos de idioma dentro;
 3. la arranca **sin acceso a Internet** y con el mismo endurecimiento que en el NAS;
 4. le pasa un contrato ficticio (español, catalán e inglés) y un escaneado con OCR, y comprueba que detecta, tacha, verifica y restaura;
-5. **solo si todo pasa**, la publica en `ghcr.io/TU_USUARIO_GITHUB/anonimizador:latest`.
+5. **solo si todo pasa**, la publica en `ghcr.io/z2gpmc0q/anonimizador:latest`.
 
 Puedes ver cada ejecución en la pestaña **Actions** del repositorio.
 
@@ -68,9 +68,7 @@ En GitHub, en tu repositorio `anonimizador`:
 
 1. Abre **Docker** en UGOS → **Proyecto** → **Crear**, igual que con Immich o Paperless.
 2. Nombre: `anonimizador`.
-3. Pega el contenido de `docker-compose.yml` y cambia dos cosas:
-   - `TU_USUARIO_GITHUB` por tu usuario de GitHub, **en minúsculas**;
-   - `ANON_PASSWORD` por una contraseña larga (12 caracteres o más, distinta a la del NAS). Guárdala en tu gestor de contraseñas.
+3. Pega el contenido de `docker-compose.yml` y cambia `ANON_PASSWORD` por una contraseña larga (12 caracteres o más, distinta a la del NAS). Guárdala en tu gestor de contraseñas.
 4. **Desplegar**. UGOS descarga la imagen y arranca el contenedor. Tras 1–2 minutos, mientras carga los modelos, su estado pasa a *healthy* (en ejecución).
 
 No hay que crear carpetas ni cambiar permisos: los datos van en un volumen de Docker que se crea solo, con los permisos correctos.
@@ -146,7 +144,7 @@ Lo único que hay en GitHub es el código y la imagen, públicos y sin datos tuy
 
 | Síntoma | Causa / solución |
 |---|---|
-| No descarga la imagen («denied» o «not found») | El paquete en GitHub no es público (paso 1), o el usuario no está en minúsculas en `image:`. |
+| No descarga la imagen («denied» o «not found») | El paquete en GitHub no es público (paso 1). |
 | El contenedor se reinicia sin parar | Mira su registro en la app Docker. Si dice «Define ANON_USER y ANON_PASSWORD», la contraseña tiene menos de 12 caracteres. |
 | No carga la web | Espera 1–2 minutos tras arrancar (carga de modelos). Revisa el firewall de UGOS para el puerto 8010. |
 | «Fallo de OCR» | PDF dañado o con restricciones. Prueba a imprimirlo a PDF de nuevo. |
