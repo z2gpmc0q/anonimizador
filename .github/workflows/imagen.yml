@@ -26,6 +26,12 @@ jobs:
       - name: Pruebas unitarias (lógica propia)
         run: python3 tests/test_basico.py
 
+      - name: Generar documentos ficticios de prueba
+        run: |
+          sudo apt-get install -y -qq fonts-dejavu-core >/dev/null
+          pip install -q reportlab pillow
+          python3 tests/generar_fixtures.py
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Construir imagen
