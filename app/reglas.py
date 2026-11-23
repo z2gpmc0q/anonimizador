@@ -143,3 +143,18 @@ def tipo_desde(texto: str) -> str:
         if etiqueta == t:
             return interno
     return "DATO"
+
+
+# Tratamientos que no forman parte del nombre: «D. Jordi Puig» -> «Jordi Puig»
+_RE_TRATAMIENTO = re.compile(
+    r"^(?:(?:D|Dª|Dña|Dn|Sr|Sra|Srta|Dr|Dra|Mr|Mrs|Ms|Miss|Sir|Prof)\.?|Don|Doña|Señor|Señora|"
+    r"Senyor|Senyora|el\s+senyor|la\s+senyora|el\s+señor|la\s+señora)\s+",
+    re.IGNORECASE,
+)
+
+
+def quita_tratamiento(valor: str) -> str:
+    anterior = None
+    while anterior != valor:  # «Sr. D. Juan» -> «Juan»
+        anterior, valor = valor, _RE_TRATAMIENTO.sub("", valor, count=1)
+    return valor

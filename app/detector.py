@@ -246,6 +246,8 @@ class Detector:
 
         def _anota(valor: str, tipo: str, score: float, origen: str):
             valor = " ".join(valor.split()).strip(" .,;:()[]\"'")
+            if tipo == "PERSON":
+                valor = reglas.quita_tratamiento(valor)
             clave = normaliza(valor)
             if clave in permitidos or _es_basura(valor, tipo):
                 return

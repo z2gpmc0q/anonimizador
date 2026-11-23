@@ -83,7 +83,7 @@ espera_salud()
 print("Contenedor listo")
 
 print("\n[Seguridad]")
-st, _ = peticion("GET", "/api/trabajos", auth=False)
+st, _ = peticion("GET", "/api/conversaciones", auth=False)
 comprueba(st == 401, "sin credenciales → 401")
 
 print("\n[Listas]")
@@ -112,6 +112,9 @@ if a and g:
     comprueba(any(v.startswith("Carrer de Balmes") for v in valores), "detecta dirección (ca)")
     comprueba(any("Baker Street" in v for v in valores), "detecta dirección (en)")
     comprueba(valores.get("Pere Soler Bosch", {}).get("origen") == "lista", "aplica la lista 'siempre anonimizar'")
+    con_tratamiento = [v for v, e in valores.items() if e["tipo"] == "PERSON" and v.split()[0].rstrip(".") in
+                       {"D", "Dña", "Mr", "Mrs", "Sr", "Sra"}]
+    comprueba(not con_tratamiento, f"nombres sin tratamiento (una persona = un marcador) {con_tratamiento}")
     comprueba(g["residuales_pdf"] == [], f"PDF tachado sin restos {g['residuales_pdf']}")
     comprueba(g["residuales_texto"] == [], "texto sin restos")
     comprueba("45127839E" not in g["texto"] and "[DNI_1]" in g["texto"], "texto seudonimizado")

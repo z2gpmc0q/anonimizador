@@ -62,6 +62,16 @@ def test_email():
     assert _busca("EMAIL_ADDRESS", "Escribe a ana.ruiz+nas@correo.ejemplo.es.") == ["ana.ruiz+nas@correo.ejemplo.es"]
 
 
+def test_quita_tratamiento():
+    assert reglas.quita_tratamiento("D. Jordi Puig Ferrer") == "Jordi Puig Ferrer"
+    assert reglas.quita_tratamiento("Dña. Laura Martínez") == "Laura Martínez"
+    assert reglas.quita_tratamiento("Sr. D. Juan Gil") == "Juan Gil"
+    assert reglas.quita_tratamiento("Mrs. Emily Clarke") == "Emily Clarke"
+    assert reglas.quita_tratamiento("la senyora Montserrat Vilaró") == "Montserrat Vilaró"
+    assert reglas.quita_tratamiento("Daniel Ruiz") == "Daniel Ruiz"      # «D» sin punto + palabra no
+    assert reglas.quita_tratamiento("Dolores Fuertes") == "Dolores Fuertes"
+
+
 def test_tipo_desde():
     assert reglas.tipo_desde("PERSONA") == "PERSON"
     assert reglas.tipo_desde("person") == "PERSON"
