@@ -70,6 +70,8 @@ def test_quita_tratamiento():
     assert reglas.quita_tratamiento("la senyora Montserrat Vilaró") == "Montserrat Vilaró"
     assert reglas.quita_tratamiento("Daniel Ruiz") == "Daniel Ruiz"      # «D» sin punto + palabra no
     assert reglas.quita_tratamiento("Dolores Fuertes") == "Dolores Fuertes"
+    assert reglas.es_solo_tratamiento("Dña") and reglas.es_solo_tratamiento("Mr.")
+    assert not reglas.es_solo_tratamiento("Dolores")
 
 
 def test_tipo_desde():

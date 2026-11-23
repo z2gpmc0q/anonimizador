@@ -248,6 +248,8 @@ class Detector:
             valor = " ".join(valor.split()).strip(" .,;:()[]\"'")
             if tipo == "PERSON":
                 valor = reglas.quita_tratamiento(valor)
+                if reglas.es_solo_tratamiento(valor):
+                    return
             clave = normaliza(valor)
             if clave in permitidos or _es_basura(valor, tipo):
                 return

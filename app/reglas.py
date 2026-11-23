@@ -158,3 +158,11 @@ def quita_tratamiento(valor: str) -> str:
     while anterior != valor:  # «Sr. D. Juan» -> «Juan»
         anterior, valor = valor, _RE_TRATAMIENTO.sub("", valor, count=1)
     return valor
+
+
+_SOLO_TRATAMIENTO = {"d", "dª", "dña", "dn", "don", "doña", "sr", "sra", "srta", "señor", "señora", "senyor",
+                     "senyora", "dr", "dra", "mr", "mrs", "ms", "miss", "sir", "prof"}
+
+
+def es_solo_tratamiento(valor: str) -> bool:
+    return valor.strip().rstrip(".").casefold() in _SOLO_TRATAMIENTO
