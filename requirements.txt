@@ -1,0 +1,8 @@
+fastapi>=0.110,<1
+uvicorn>=0.29,<1
+python-multipart>=0.0.9
+presidio-analyzer>=2.2.354,<3
+spacy>=3.7,<4
+PyMuPDF>=1.24,<2
+ocrmypdf>=16,<18
+lingua-language-detector>=2,<3

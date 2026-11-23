@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anonimizador</title>
+<style>
+  :root { --fg:#1d1d1f; --mut:#6e6e73; --bd:#d2d2d7; --bg:#f5f5f7; --ac:#0b57d0; --ok:#1e7d32; --warn:#b26a00; --err:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--fg); background:var(--bg); }
+  header { background:#fff; border-bottom:1px solid var(--bd); padding:14px 24px; display:flex; gap:24px; align-items:center; }
+  header h1 { font-size:17px; margin:0; }
+  nav button { background:none; border:0; padding:6px 10px; font:inherit; color:var(--mut); cursor:pointer; border-radius:6px; }
+  nav button.on { color:var(--fg); background:var(--bg); font-weight:600; }
+  main { max-width:1100px; margin:24px auto; padding:0 24px; }
+  section.card { background:#fff; border:1px solid var(--bd); border-radius:10px; padding:20px; margin-bottom:18px; }
+  h2 { font-size:15px; margin:0 0 12px; }
+  label.lbl { display:block; font-size:13px; color:var(--mut); margin:12px 0 4px; }
+  textarea, input[type=text], select { width:100%; font:13px ui-monospace,Menlo,Consolas,monospace; border:1px solid var(--bd); border-radius:6px; padding:8px; }
+  textarea.grande { min-height:320px; }
+  .btn { background:var(--ac); color:#fff; border:0; border-radius:6px; padding:8px 16px; font:inherit; cursor:pointer; }
+  .btn.sec { background:#fff; color:var(--fg); border:1px solid var(--bd); }
+  .btn:disabled { opacity:.5; cursor:wait; }
+  .fila { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--bg); }
+  th { color:var(--mut); font-weight:500; position:sticky; top:0; background:#fff; }
+  .tabla { max-height:420px; overflow:auto; border:1px solid var(--bd); border-radius:6px; }
+  .tag { font:11px ui-monospace,monospace; background:var(--bg); padding:2px 6px; border-radius:4px; }
+  .msg { padding:10px 12px; border-radius:6px; margin-top:12px; font-size:13px; }
+  .msg.ok { background:#e8f5e9; color:var(--ok); } .msg.warn { background:#fff4e5; color:var(--warn); } .msg.err { background:#fdecea; color:var(--err); }
+  .mut { color:var(--mut); font-size:13px; }
+  .oculto { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Anonimizador local</h1>
+  <nav>
+    <button id="t-anon" class="on" onclick="pestana('anon')">Anonimizar</button>
+    <button id="t-rest" onclick="pestana('rest')">Restaurar respuesta</button>
+    <button id="t-list" onclick="pestana('list')">Listas</button>
+  </nav>
+</header>
+<main>
+  <!-- ANONIMIZAR -->
+  <div id="p-anon">
+    <section class="card">
+      <h2>1 · Documento</h2>
+      <div class="fila" style="margin-top:0">
+        <input type="file" id="archivo" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" style="flex:1">
+        <label class="mut">Idioma
+          <select id="idioma" style="width:auto">
+            <option value="auto">Automático (por página)</option>
+            <option value="es">Español</option><option value="ca">Català</option><option value="en">English</option>
+          </select></label>
+      </div>
+      <label class="lbl">Términos adicionales a anonimizar (uno por línea; opcional <code>texto;TIPO</code>, p. ej. <code>Ana López;PERSONA</code>)</label>
+      <textarea id="terminos" rows="3"></textarea>
+      <div class="fila"><button class="btn" id="b-analizar" onclick="analizar()">Analizar</button><span id="e-analizar" class="mut"></span></div>
+      <div id="m-analizar"></div>
+    </section>
+
+    <section class="card oculto" id="c-revision">
+      <h2>2 · Revisa lo detectado</h2>
+      <p class="mut">Marca lo que debe anonimizarse. Organizaciones y fechas vienen desmarcadas por defecto. Si falta algo, añádelo abajo.</p>
+      <div class="fila" style="margin:0 0 8px">
+        <button class="btn sec" onclick="marcarTodo(true)">Marcar todo</button>
+        <button class="btn sec" onclick="marcarTodo(false)">Desmarcar todo</button>
+      </div>
+      <div class="tabla"><table>
+        <thead><tr><th></th><th>Valor detectado</th><th>Tipo</th><th>Veces</th><th>Confianza</th></tr></thead>
+        <tbody id="tb-entidades"></tbody>
+      </table></div>
+      <label class="lbl">Añadir más (uno por línea, opcional <code>;TIPO</code>)</label>
+      <textarea id="extra" rows="2"></textarea>
+      <div class="fila">
+        <label><input type="checkbox" id="instr" checked> Incluir instrucción para el LLM sobre los marcadores</label>
+      </div>
+      <div class="fila"><button class="btn" id="b-generar" onclick="generar()">Generar versión anonimizada</button><span id="e-generar" class="mut"></span></div>
+    </section>
+
+    <section class="card oculto" id="c-resultado">
+      <h2>3 · Resultado</h2>
+      <div id="m-generar"></div>
+      <div class="fila">
+        <a class="btn sec" id="d-pdf" href="#">Descargar PDF tachado</a>
+        <a class="btn sec" id="d-txt" href="#">Descargar texto</a>
+        <button class="btn" onclick="copiar('salida')">Copiar texto</button>
+      </div>
+      <label class="lbl">Texto seudonimizado (esto es lo que puedes enviar al LLM)</label>
+      <textarea id="salida" class="grande" readonly></textarea>
+      <details style="margin-top:12px"><summary class="mut">Tabla de correspondencias (se queda en el NAS)</summary>
+        <div class="tabla" style="margin-top:8px"><table><tbody id="tb-mapa"></tbody></table></div>
+      </details>
+    </section>
+  </div>
+
+  <!-- RESTAURAR -->
+  <div id="p-rest" class="oculto">
+    <section class="card">
+      <h2>Restaurar los datos reales en la respuesta del LLM</h2>
+      <label class="lbl">Documento original</label>
+      <div class="fila" style="margin-top:0">
+        <select id="sel-trabajo" style="flex:1"></select>
+        <button class="btn sec" onclick="cargarTrabajos()">Recargar</button>
+        <button class="btn sec" onclick="borrarTrabajo()">Borrar trabajo</button>
+      </div>
+      <label class="lbl">Pega aquí la respuesta del LLM</label>
+      <textarea id="respuesta" rows="10"></textarea>
+      <div class="fila"><button class="btn" onclick="restaurar()">Restaurar</button></div>
+      <div id="m-rest"></div>
+      <label class="lbl">Respuesta con los datos reales (no la reenvíes al LLM)</label>
+      <textarea id="restaurado" class="grande" readonly></textarea>
+      <div class="fila"><button class="btn sec" onclick="copiar('restaurado')">Copiar</button></div>
+    </section>
+  </div>
+
+  <!-- LISTAS -->
+  <div id="p-list" class="oculto">
+    <section class="card">
+      <h2>Siempre anonimizar</h2>
+      <p class="mut">Nombres de la familia, vuestra dirección, empresa… Se anonimizan siempre aunque el detector no los vea. Una entrada por línea; opcional <code>;TIPO</code> (PERSONA, DIRECCION, DNI, TELEFONO, EMAIL, IBAN, LUGAR, ORGANIZACION, DATO…). Las líneas que empiezan por <code>#</code> se ignoran.</p>
+      <textarea id="l-terminos" rows="12"></textarea>
+    </section>
+    <section class="card">
+      <h2>Nunca anonimizar</h2>
+      <p class="mut">Palabras que el detector marca por error (organismos, bancos, tu ciudad si no te importa que se vea…). Una por línea.</p>
+      <textarea id="l-permitidos" rows="8"></textarea>
+      <div class="fila"><button class="btn" onclick="guardarListas()">Guardar listas</button></div>
+      <div id="m-list"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+let job = null, entidades = [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const msg = (id, tipo, html) => { $(id).innerHTML = html ? `<div class="msg ${tipo}">${html}</div>` : ''; };
+
+function pestana(p) {
+  for (const x of ['anon','rest','list']) { $('p-'+x).classList.toggle('oculto', x!==p); $('t-'+x).classList.toggle('on', x===p); }
+  if (p === 'rest') cargarTrabajos();
+  if (p === 'list') cargarListas();
+}
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const datos = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(datos.detail || `Error ${r.status}`);
+  return datos;
+}
+
+async function analizar() {
+  const f = $('archivo').files[0];
+  if (!f) return msg('m-analizar', 'err', 'Selecciona un archivo.');
+  const fd = new FormData(); fd.append('archivo', f); fd.append('terminos', $('terminos').value); fd.append('idioma', $('idioma').value);
+  $('b-analizar').disabled = true; $('e-analizar').textContent = 'Procesando (los escaneados pueden tardar varios minutos)…';
+  msg('m-analizar'); $('c-revision').classList.add('oculto'); $('c-resultado').classList.add('oculto');
+  try {
+    const d = await api('/api/analizar', { method: 'POST', body: fd });
+    job = d.id; entidades = d.entidades;
+    msg('m-analizar', 'ok', `${d.paginas} página(s) · idioma: ${d.idiomas.join(', ')}${d.ocr ? ' · OCR aplicado' : ''} · ${entidades.length} valores detectados.`);
+    $('tb-entidades').innerHTML = entidades.map(e => `<tr>
+      <td><input type="checkbox" data-id="${e.id}" ${e.marcado ? 'checked' : ''}></td>
+      <td>${esc(e.valor)}</td><td><span class="tag">${esc(e.etiqueta)}</span></td>
+      <td>${e.apariciones}</td><td>${e.origen === 'lista' ? 'lista' : Math.round(e.score*100)+'%'}</td></tr>`).join('');
+    $('c-revision').classList.remove('oculto');
+  } catch (e) { msg('m-analizar', 'err', esc(e.message)); }
+  finally { $('b-analizar').disabled = false; $('e-analizar').textContent = ''; }
+}
+
+function marcarTodo(v) { document.querySelectorAll('#tb-entidades input').forEach(c => c.checked = v); }
+
+async function generar() {
+  const seleccion = [...document.querySelectorAll('#tb-entidades input:checked')].map(c => +c.dataset.id);
+  const extra = $('extra').value.split('\n').filter(s => s.trim());
+  $('b-generar').disabled = true; $('e-generar').textContent = 'Generando…';
+  try {
+    const d = await api(`/api/generar/${job}`, { method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ seleccion, extra, instruccion: $('instr').checked }) });
+    $('salida').value = d.texto;
+    $('d-pdf').href = `/api/descargar/${job}/tachado.pdf`; $('d-txt').href = `/api/descargar/${job}/texto.txt`;
+    $('tb-mapa').innerHTML = d.mapa.map(m => `<tr><td><span class="tag">[${esc(m.marcador)}]</span></td><td>${esc(m.valor)}</td><td>${m.apariciones}</td></tr>`).join('');
+    const problemas = [...d.avisos,
+      ...d.residuales_pdf.map(r => `Sigue en el PDF: «${r.valor}» (${r.apariciones})`),
+      ...d.residuales_texto.map(r => `Sigue en el texto: «${r.valor}» (${r.apariciones})`)];
+    if (problemas.length) msg('m-generar', 'warn', '<b>Revisa antes de enviar:</b><br>' + problemas.map(esc).join('<br>'));
+    else msg('m-generar', 'ok', `${d.mapa.length} valores sustituidos. Verificación automática sin restos. Aun así, lee el texto antes de enviarlo.`);
+    $('c-resultado').classList.remove('oculto');
+    $('c-resultado').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) { msg('m-generar', 'err', esc(e.message)); $('c-resultado').classList.remove('oculto'); }
+  finally { $('b-generar').disabled = false; $('e-generar').textContent = ''; }
+}
+
+async function cargarTrabajos() {
+  try {
+    const t = await api('/api/trabajos');
+    $('sel-trabajo').innerHTML = t.length ? t.map(x => `<option value="${x.id}">${esc(x.nombre)} — ${new Date(x.creado*1000).toLocaleString('es-ES')} (${x.marcadores} marcadores)</option>`).join('')
+      : '<option value="">No hay trabajos guardados</option>';
+    if (job && t.some(x => x.id === job)) $('sel-trabajo').value = job;
+  } catch (e) { msg('m-rest', 'err', esc(e.message)); }
+}
+
+async function restaurar() {
+  const id = $('sel-trabajo').value;
+  if (!id) return msg('m-rest', 'err', 'Selecciona un trabajo.');
+  try {
+    const d = await api(`/api/restaurar/${id}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ texto: $('respuesta').value }) });
+    $('restaurado').value = d.texto;
+    msg('m-rest', d.desconocidos.length ? 'warn' : 'ok', d.desconocidos.length
+      ? 'Marcadores que no existen en este documento (el LLM los ha inventado o alterado): ' + d.desconocidos.map(esc).join(', ')
+      : 'Restaurado.');
+  } catch (e) { msg('m-rest', 'err', esc(e.message)); }
+}
+
+async function borrarTrabajo() {
+  const id = $('sel-trabajo').value;
+  if (!id || !confirm('¿Borrar este trabajo y su tabla de correspondencias? No se podrá restaurar después.')) return;
+  try { await api(`/api/trabajos/${id}`, { method: 'DELETE' }); if (id === job) job = null; cargarTrabajos(); msg('m-rest', 'ok', 'Borrado.'); }
+  catch (e) { msg('m-rest', 'err', esc(e.message)); }
+}
+
+async function cargarListas() {
+  try { const d = await api('/api/listas'); $('l-terminos').value = d.terminos; $('l-permitidos').value = d.permitidos; msg('m-list'); }
+  catch (e) { msg('m-list', 'err', esc(e.message)); }
+}
+
+async function guardarListas() {
+  try {
+    await api('/api/listas', { method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ terminos: $('l-terminos').value, permitidos: $('l-permitidos').value }) });
+    msg('m-list', 'ok', 'Guardado. Se aplica a partir del próximo documento que analices.');
+  } catch (e) { msg('m-list', 'err', esc(e.message)); }
+}
+
+async function copiar(id) {
+  // En http:// (sin TLS) el portapapeles moderno no existe: se usa el método clásico
+  if (navigator.clipboard && window.isSecureContext) { try { return await navigator.clipboard.writeText($(id).value); } catch (_) {} }
+  $(id).select(); document.execCommand('copy');
+}
+</script>
+</body>
+</html>

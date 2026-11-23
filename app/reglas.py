@@ -1,0 +1,145 @@
+"""Reglas de detección españolas (puras, sin dependencias externas).
+
+Se usan desde detector.py (envueltas en Presidio) y desde los tests.
+"""
+import re
+
+LETRAS_DNI = "TRWAGMYFPDXBNJZSQVHLCKE"
+
+# Tipo interno -> etiqueta del marcador que verá el LLM (ASCII, sin espacios)
+ETIQUETAS = {
+    "PERSON": "PERSONA",
+    "LOCATION": "LUGAR",
+    "ORGANIZATION": "ORGANIZACION",
+    "EMAIL_ADDRESS": "EMAIL",
+    "PHONE_NUMBER": "TELEFONO",
+    "IBAN_CODE": "IBAN",
+    "CREDIT_CARD": "TARJETA",
+    "IP_ADDRESS": "IP",
+    "ES_DNI": "DNI",
+    "ES_NIE": "NIE",
+    "ES_NSS": "NSS",
+    "ES_DIRECCION": "DIRECCION",
+    "ES_CP": "CP",
+    "ES_MATRICULA": "MATRICULA",
+    "FECHA": "FECHA",
+    "DATO": "DATO",
+}
+
+# Tipos que la interfaz deja SIN marcar por defecto (suelen ser contexto útil)
+DESMARCADOS_POR_DEFECTO = {"ORGANIZATION", "FECHA"}
+
+
+def _solo_alnum(s: str) -> str:
+    return re.sub(r"[^0-9A-Za-z]", "", s).upper()
+
+
+def valida_dni(texto: str) -> bool:
+    s = _solo_alnum(texto)
+    if not re.fullmatch(r"\d{7,8}[A-Z]", s):
+        return False
+    return LETRAS_DNI[int(s[:-1]) % 23] == s[-1]
+
+
+def valida_nie(texto: str) -> bool:
+    s = _solo_alnum(texto)
+    if not re.fullmatch(r"[XYZ]\d{7}[A-Z]", s):
+        return False
+    num = "XYZ".index(s[0]) * 10_000_000 + int(s[1:8])
+    return LETRAS_DNI[num % 23] == s[-1]
+
+
+def valida_nss(texto: str) -> bool:
+    s = re.sub(r"\D", "", texto)
+    if len(s) != 12:
+        return False
+    prov, num, dc = int(s[:2]), int(s[2:10]), int(s[10:])
+    if not 1 <= prov <= 53:
+        return False
+    base = prov * 10_000_000 + num if num < 10_000_000 else int(s[:10])
+    return base % 97 == dc
+
+
+# (nombre, regex, puntuación base, flags propios o None = IGNORECASE por defecto)
+PATRONES = {
+    # Regla propia: el EmailRecognizer de Presidio usa tldextract, que descarga
+    # la lista de sufijos públicos de Internet. Así no sale ninguna conexión.
+    "EMAIL_ADDRESS": [
+        ("email", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,24}\b", 0.9, None),
+    ],
+    "ES_DNI": [
+        ("dni", r"\b\d{1,2}\.?\d{3}\.?\d{3}[- ]?[A-Za-z]\b", 0.5, re.MULTILINE),
+    ],
+    "ES_NIE": [
+        ("nie", r"\b[XYZxyz][- ]?\d{7}[- ]?[A-Za-z]\b", 0.5, re.MULTILINE),
+    ],
+    "ES_NSS": [
+        ("nss", r"\b\d{2}[ /-]?\d{8}[ /-]?\d{2}\b", 0.4, re.MULTILINE),
+    ],
+    "ES_MATRICULA": [
+        ("matricula", r"\b\d{4}[ -]?[BCDFGHJKLMNPRSTVWXYZ]{3}\b", 0.6, re.MULTILINE),
+    ],
+    "ES_CP": [
+        # Solo puntúa por encima del umbral si hay contexto ("C.P.", "código postal"...)
+        ("cp", r"\b(?:0[1-9]|[1-4]\d|5[0-2])\d{3}\b", 0.1, None),
+    ],
+    "ES_DIRECCION": [
+        (
+            # Vías en español y catalán: «C/ Mayor 12, 3º B», «Carrer de Balmes, 45», «Plaça Major s/n»
+            "via",
+            r"\b(?:C/|Calle|Carrer|Avda\.?|Av\.|Avenida|Avinguda|Plaza|Pza\.?|Pl\.|Pla[çc]a|"
+            r"Paseo|Passeig|Pg\.|Pº|Passatge|Ptge\.|Camino|Cam[ií]|Ctra\.?|Carretera|Ronda|"
+            r"Traves[ií]a|Travessera|Urb\.?|Urbanizaci[oó]n?|Urbanitzaci[oó]|Glorieta|Rambla)"
+            r"[ \t]+[^\n,;]{2,50}?"
+            r"(?:,?[ \t]*(?:(?:n[ºo°]\.?|n[uú]m\.?)?[ \t]*\d{1,4}[A-Za-z]?\b|s/n))"
+            r"(?:,?[ \t]*\d{1,2}[ºª°]?[ \t]*[A-Za-z0-9]?[ªa]?\b)?",
+            0.6,
+            None,
+        ),
+        (
+            # Inglés: «221B Baker Street», «10 Downing St.»
+            "via_en",
+            r"\b\d{1,5}[A-Za-z]?[ \t]+(?:[A-Z][\w'-]*[ \t]+){1,4}"
+            r"(?:Street|St\.|Road|Rd\.|Avenue|Ave\.|Lane|Ln\.|Drive|Dr\.|Way|Close|Court|Ct\.|"
+            r"Boulevard|Blvd\.|Place|Pl\.|Square|Sq\.|Crescent|Terrace|Gardens)(?=\W|$)",
+            0.6,
+            re.MULTILINE,
+        ),
+    ],
+    "FECHA": [
+        (
+            "fecha",
+            r"\b(?:0?[1-9]|[12]\d|3[01])[/.-](?:0?[1-9]|1[0-2])[/.-](?:19|20)\d{2}\b",
+            0.5,
+            None,
+        ),
+    ],
+}
+
+# Palabras de contexto en español, catalán e inglés (suben la puntuación si están cerca)
+CONTEXTO = {
+    "ES_DNI": ["dni", "nif", "documento", "document", "identidad", "identitat", "id"],
+    "ES_NIE": ["nie", "extranjero", "estranger", "identidad", "identitat"],
+    "ES_NSS": ["seguridad", "seguretat", "social", "nss", "afiliación", "afiliacion", "afiliació", "naf"],
+    "ES_MATRICULA": ["matrícula", "matricula", "vehículo", "vehiculo", "vehicle", "plate"],
+    "ES_CP": ["cp", "c.p", "postal", "código", "codigo", "codi", "zip"],
+    "FECHA": ["nacimiento", "nacido", "nacida", "naixement", "nascut", "nascuda", "birth", "born", "dob"],
+    "PHONE_NUMBER": ["teléfono", "telefono", "telèfon", "telefon", "tlf", "tel", "móvil", "movil", "mòbil",
+                     "phone", "mobile", "fax"],
+    "EMAIL_ADDRESS": ["correo", "correu", "email", "e-mail", "mail"],
+    "IBAN_CODE": ["iban", "cuenta", "compte", "account", "banco", "banc", "bank"],
+    "CREDIT_CARD": ["tarjeta", "targeta", "card", "visa", "mastercard"],
+}
+
+VALIDADORES = {"ES_DNI": valida_dni, "ES_NIE": valida_nie, "ES_NSS": valida_nss}
+
+
+def tipo_desde(texto: str) -> str:
+    """Acepta tipo interno (PERSON) o etiqueta (PERSONA); por defecto DATO."""
+    t = texto.strip().upper()
+    if t in ETIQUETAS:
+        return t
+    for interno, etiqueta in ETIQUETAS.items():
+        if etiqueta == t:
+            return interno
+    return "DATO"

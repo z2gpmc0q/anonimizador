@@ -1,0 +1,9 @@
+# Términos que SIEMPRE se anonimizan si aparecen (además de la detección automática).
+# Una entrada por línea:  valor   o   valor;TIPO
+# TIPOS: PERSONA, LUGAR, ORGANIZACION, EMAIL, TELEFONO, IBAN, DNI, NIE, NSS,
+#        DIRECCION, CP, MATRICULA, FECHA, DATO
+# Pon aquí nombres y apellidos de la familia, vuestra dirección, etc.
+# Ejemplos (quita la # del principio para activarlos):
+# Nombre Apellido1 Apellido2;PERSONA
+# Apellido1;PERSONA
+# Calle Ejemplo 12;DIRECCION

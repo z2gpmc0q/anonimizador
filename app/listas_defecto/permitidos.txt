@@ -1,0 +1,8 @@
+# Términos que NUNCA se anonimizan (falsos positivos habituales).
+# Un valor por línea; se comparan sin distinguir mayúsculas.
+Agencia Tributaria
+Seguridad Social
+Hacienda
+España
+IVA
+IRPF
