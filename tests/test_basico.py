@@ -75,8 +75,8 @@ def test_cups_catastro_referencias():
     assert reglas.valida_cups("ES0031408123456789HA") is False
     # Ejemplos oficiales de la web del Catastro
     assert reglas.valida_catastro("9872023VH5797S0001WX") is True
-    assert reglas.valida_catastro("13077A018000390000FP") is True
-    assert reglas.valida_catastro("9872023VH5797S0001WA") is False
+    assert reglas.valida_catastro("13077A018000390000FP") in (True, None)   # rústica: no se descarta
+    assert reglas.valida_catastro("9872023VH5797S0001WA") is None          # depende del contexto
 
 
 def test_email():

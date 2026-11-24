@@ -67,7 +67,9 @@ def valida_cups(texto: str):
 
 
 def valida_catastro(texto: str):
-    return _stdnum("referenciacatastral", texto.replace(" ", ""))
+    """True si cuadran los caracteres de control. Si no, None (no se descarta): algunas
+    referencias rústicas reales no siguen el control, así que dependen del contexto."""
+    return True if _stdnum("referenciacatastral", texto.replace(" ", "")) else None
 
 
 def valida_nss(texto: str) -> bool:
@@ -133,7 +135,8 @@ PATRONES = {
     ],
     # Referencia catastral: 14 caracteres de finca/hoja + 4 de inmueble + 2 de control
     "ES_CATASTRO": [
-        ("catastro", r"\b[0-9A-Z]{7} ?[0-9A-Z]{7} ?\d{4} ?[A-Z]{2}\b", 0.5, re.MULTILINE),
+        # 0.3: sin control válido solo pasa el umbral con contexto («catastral»…)
+        ("catastro", r"\b[0-9A-Z]{7} ?[0-9A-Z]{7} ?\d{4} ?[A-Z]{2}\b", 0.3, re.MULTILINE),
     ],
     # Tarjeta sanitaria / historia clínica: formatos variados según comunidad,
     # así que solo cuenta si hay una palabra de contexto cerca («CIP», «NHC»…)
