@@ -31,6 +31,41 @@
   .msg.ok { background:#e8f5e9; color:var(--ok); } .msg.warn { background:#fff4e5; color:var(--warn); } .msg.err { background:#fdecea; color:var(--err); }
   .mut { color:var(--mut); font-size:13px; }
   .oculto { display:none; }
+  a.btn { text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
+  select, input[type=text] { font:14px system-ui,-apple-system,"Segoe UI",sans-serif; }
+  label.mut select, label.mut input { margin-top:4px; }
+
+  /* ---------- Móvil ---------- */
+  @media (max-width: 640px) {
+    header { flex-direction:column; align-items:stretch; gap:8px; padding:10px 12px; position:sticky; top:0; z-index:5; }
+    header h1 { display:none; }
+    nav { display:flex; gap:4px; background:var(--bg); padding:3px; border-radius:8px; }
+    nav button { flex:1; padding:8px 4px; font-size:14px; }
+    nav button.on { background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+    main { margin:12px auto; padding:0 10px; }
+    section.card { padding:14px; border-radius:12px; }
+    .fila > label, .fila > input[type=file], .fila > select { flex:1 1 100% !important; width:100%; }
+    label.mut { display:block; }
+    label.mut select, label.mut input[type=text] { display:block; width:100% !important; }
+    .fila .btn { flex:1 1 auto; min-height:44px; }
+    select, input[type=text], textarea { font-size:16px; }   /* evita el zoom automático al escribir */
+    textarea.grande { min-height:55vh; font-size:13px; }
+    .tabla { max-height:none; overflow:visible; border:0; }
+    /* La tabla de revisión se convierte en tarjetas */
+    #c-revision thead { display:none; }
+    #c-revision tr { display:grid; grid-template-columns:40px auto auto 1fr;
+                     grid-template-areas:"chk val val val" "chk tag n conf";
+                     gap:4px 8px; padding:10px 4px; border-bottom:1px solid var(--bd); align-items:center; }
+    #c-revision td { padding:0; border:0; }
+    #c-revision td:nth-child(1) { grid-area:chk; align-self:start; }
+    #c-revision td:nth-child(1) input { width:22px; height:22px; margin:2px 0 0; }
+    #c-revision td:nth-child(2) { grid-area:val; font-size:15px; word-break:break-word; }
+    #c-revision td:nth-child(3) { grid-area:tag; }
+    #c-revision td:nth-child(4) { grid-area:n; color:var(--mut); font-size:12px; }
+    #c-revision td:nth-child(4)::before { content:"×"; }
+    #c-revision td:nth-child(5) { grid-area:conf; color:var(--mut); font-size:12px; text-align:right; }
+    #c-resultado details table td { word-break:break-word; }
+  }
 </style>
 </head>
 <body>
@@ -38,7 +73,7 @@
   <h1>Anonimizador local</h1>
   <nav>
     <button id="t-anon" class="on" onclick="pestana('anon')">Anonimizar</button>
-    <button id="t-rest" onclick="pestana('rest')">Restaurar respuesta</button>
+    <button id="t-rest" onclick="pestana('rest')">Restaurar</button>
     <button id="t-list" onclick="pestana('list')">Listas</button>
   </nav>
 </header>
