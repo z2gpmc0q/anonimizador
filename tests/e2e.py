@@ -105,6 +105,9 @@ if a and g:
               "laura.martinez@correo-ejemplo.es", "emily.clarke@example.co.uk"]:
         comprueba(v in valores, f"detecta {v}")
     comprueba(any("612 345 678" in v for v in valores), "detecta teléfono español")
+    for v, t in [("9872023VH5797S0001WX", "ES_CATASTRO"), ("ES0031408123456789HH", "ES_CUPS"),
+                 ("POL2024-0098765", "ES_REFERENCIA")]:
+        comprueba(valores.get(v, {}).get("tipo") == t, f"detecta {v} como {t} ({valores.get(v, {}).get('tipo')})")
     comprueba(any("Laura Martínez Soto" in v for v in valores), "detecta persona (es)")
     comprueba(any("Montserrat Vilaró" in v for v in valores), "detecta persona (ca)")
     comprueba(any("John Smith" in v for v in valores), "detecta persona (en)")

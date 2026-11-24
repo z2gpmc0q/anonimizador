@@ -23,6 +23,10 @@ ETIQUETAS = {
     "ES_CP": "CP",
     "ES_MATRICULA": "MATRICULA",
     "FECHA": "FECHA",
+    "ES_CUPS": "CUPS",
+    "ES_CATASTRO": "CATASTRO",
+    "ES_SANITARIO": "SANITARIO",
+    "ES_REFERENCIA": "REFERENCIA",
     "DATO": "DATO",
 }
 
@@ -47,6 +51,23 @@ def valida_nie(texto: str) -> bool:
         return False
     num = "XYZ".index(s[0]) * 10_000_000 + int(s[1:8])
     return LETRAS_DNI[num % 23] == s[-1]
+
+
+def _stdnum(modulo: str, texto: str):
+    """Valida con python-stdnum (librería de referencia). Sin ella: None = no decide."""
+    try:
+        import importlib
+        return importlib.import_module(f"stdnum.es.{modulo}").is_valid(texto)
+    except ImportError:
+        return None
+
+
+def valida_cups(texto: str):
+    return _stdnum("cups", texto)
+
+
+def valida_catastro(texto: str):
+    return _stdnum("referenciacatastral", texto.replace(" ", ""))
 
 
 def valida_nss(texto: str) -> bool:
@@ -106,6 +127,26 @@ PATRONES = {
             re.MULTILINE,
         ),
     ],
+    # CUPS de luz/gas: ES + 16 dígitos + 2 letras de control (+ 2 opcionales de frontera)
+    "ES_CUPS": [
+        ("cups", r"\bES ?\d{4} ?\d{4} ?\d{4} ?\d{4} ?[A-Z]{2}(?: ?\d[A-Z])?\b", 0.5, re.MULTILINE),
+    ],
+    # Referencia catastral: 14 caracteres de finca/hoja + 4 de inmueble + 2 de control
+    "ES_CATASTRO": [
+        ("catastro", r"\b[0-9A-Z]{7} ?[0-9A-Z]{7} ?\d{4} ?[A-Z]{2}\b", 0.5, re.MULTILINE),
+    ],
+    # Tarjeta sanitaria / historia clínica: formatos variados según comunidad,
+    # así que solo cuenta si hay una palabra de contexto cerca («CIP», «NHC»…)
+    "ES_SANITARIO": [
+        ("cip", r"\b[A-Z]{4} ?\d{10}\b", 0.3, re.MULTILINE),
+        ("generico", r"\b(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{5,19}\b", 0.05, re.MULTILINE),
+    ],
+    # Nº de póliza, cliente, contrato, expediente: solo con contexto
+    "ES_REFERENCIA": [
+        # (excluye fechas tipo 01/04/2025)
+        ("referencia", r"\b(?!\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b)(?=[A-Z0-9/-]*\d{4})[A-Z0-9][A-Z0-9/-]{5,24}\b",
+         0.05, re.MULTILINE),
+    ],
     "FECHA": [
         (
             "fecha",
@@ -129,9 +170,16 @@ CONTEXTO = {
     "EMAIL_ADDRESS": ["correo", "correu", "email", "e-mail", "mail"],
     "IBAN_CODE": ["iban", "cuenta", "compte", "account", "banco", "banc", "bank"],
     "CREDIT_CARD": ["tarjeta", "targeta", "card", "visa", "mastercard"],
+    "ES_CUPS": ["cups", "suministro", "subministrament"],
+    "ES_CATASTRO": ["catastral", "catastro", "cadastral", "cadastre", "inmueble", "immoble"],
+    "ES_SANITARIO": ["sanitaria", "sanitari", "cip", "cipa", "tsi", "sns", "nhc", "historia", "història",
+                     "clínica", "clinica", "hc", "paciente", "pacient"],
+    "ES_REFERENCIA": ["póliza", "poliza", "pòlissa", "polissa", "asegurado", "assegurat", "abonado",
+                      "cliente", "client", "contrato", "contracte", "expediente", "expedient", "socio", "soci"],
 }
 
-VALIDADORES = {"ES_DNI": valida_dni, "ES_NIE": valida_nie, "ES_NSS": valida_nss}
+VALIDADORES = {"ES_DNI": valida_dni, "ES_NIE": valida_nie, "ES_NSS": valida_nss,
+               "ES_CUPS": valida_cups, "ES_CATASTRO": valida_catastro}
 
 
 def tipo_desde(texto: str) -> str:

@@ -22,6 +22,8 @@ PAGINAS = {
         "De otra parte, Dña. Laura Martínez Soto, con DNI 38291746N,",
         "teléfono 612 345 678 y correo laura.martinez@correo-ejemplo.es.",
         "La renta se abonará en la cuenta ES91 2100 0418 4502 0005 1332.",
+        "Referencia catastral 9872023VH5797S0001WX, CUPS ES0031408123456789HH.",
+        "Seguro de hogar, nº de póliza POL2024-0098765.",
         "Firmado: Laura Martínez Soto.",
     ],
     "ca": [

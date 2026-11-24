@@ -58,6 +58,27 @@ def test_matricula_y_direccion():
     assert _busca("ES_DIRECCION", "The meeting is on 12 March") == []
 
 
+def test_cups_catastro_referencias():
+    assert _busca("ES_CUPS", "CUPS: ES0031408123456789HH.") == ["ES0031408123456789HH"]
+    assert _busca("ES_CUPS", "CUPS ES 0031 4081 2345 6789 HH 0F") == ["ES 0031 4081 2345 6789 HH 0F"]
+    assert _busca("ES_CATASTRO", "Ref. catastral 9872023VH5797S0001WX") == ["9872023VH5797S0001WX"]
+    assert _busca("ES_CATASTRO", "rústica 13077A018000390000FP") == ["13077A018000390000FP"]
+    assert "01/04/2025" not in _busca("ES_REFERENCIA", "contrato desde el 01/04/2025")
+    assert "POL2024-0098765" in _busca("ES_REFERENCIA", "Nº de póliza: POL2024-0098765")
+    assert "PUFE0123456789" in _busca("ES_SANITARIO", "CIP: PUFE0123456789")
+    try:
+        import stdnum  # noqa: F401  (en la CI se instala; en local puede no estar)
+    except ImportError:
+        print("   (python-stdnum no instalado: se omite la validación de CUPS/catastro)")
+        return
+    assert reglas.valida_cups("ES0031408123456789HH") is True
+    assert reglas.valida_cups("ES0031408123456789HA") is False
+    # Ejemplos oficiales de la web del Catastro
+    assert reglas.valida_catastro("9872023VH5797S0001WX") is True
+    assert reglas.valida_catastro("13077A018000390000FP") is True
+    assert reglas.valida_catastro("9872023VH5797S0001WA") is False
+
+
 def test_email():
     assert _busca("EMAIL_ADDRESS", "Escribe a ana.ruiz+nas@correo.ejemplo.es.") == ["ana.ruiz+nas@correo.ejemplo.es"]
 

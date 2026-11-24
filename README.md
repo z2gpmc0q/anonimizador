@@ -23,6 +23,10 @@ PDF / foto ──► OCR (si es escaneado) ──► detección ──► TÚ RE
 | `TELEFONO`, `EMAIL`, `IP` | Contacto | Patrones (teléfonos ES, AD, FR, GB, US) |
 | `DIRECCION`, `CP` | Domicilios | Patrones (ES, CA, EN); el CP solo con contexto («C.P.», «codi postal») |
 | `MATRICULA` | Matrículas españolas | Patrón |
+| `CUPS` | Código de suministro de luz y gas (identifica la vivienda) | Patrón + letras de control verificadas (python-stdnum) |
+| `CATASTRO` | Referencia catastral (IBI, escrituras) | Patrón + caracteres de control verificados (python-stdnum) |
+| `SANITARIO` | Tarjeta sanitaria (CIP), nº de historia clínica | Patrón **solo si hay contexto** cerca («CIP», «NHC», «historia clínica»…) |
+| `REFERENCIA` | Nº de póliza, cliente, contrato, expediente | Patrón **solo si hay contexto** cerca («póliza», «cliente», «contrato»…) |
 | `FECHA` | Fechas | Patrón (**desmarcado por defecto**: márcalas tú si son fechas de nacimiento) |
 
 Idiomas: **español** (modelo grande, máxima calidad), **catalán** e **inglés** (modelo mediano). El idioma se detecta automáticamente en cada página.
@@ -42,6 +46,7 @@ Idiomas: **español** (modelo grande, máxima calidad), **catalán** e **inglés
 | OCRmyPDF + Tesseract | OCR de escaneados y fotos | ocrmypdf.readthedocs.io |
 | PyMuPDF | Tachado real (borra el texto, no solo lo tapa) | pymupdf.readthedocs.io |
 | Lingua | Detección de idioma, local | github.com/pemistahl/lingua-py |
+| python-stdnum | Validación de CUPS y referencia catastral | github.com/arthurdejong/python-stdnum |
 | GLiNER | Segundo detector de datos personales | github.com/urchade/GLiNER |
 | FastAPI | Servidor web | fastapi.tiangolo.com |
 

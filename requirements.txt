@@ -9,3 +9,4 @@ lingua-language-detector>=2,<3
 gliner>=0.2.13,<1
 protobuf>=4
 sentencepiece>=0.2
+python-stdnum>=1.20
