@@ -1,4 +1,4 @@
-# Términos que SIEMPRE se anonimizan si aparecen (además de la detección automática).
+# Ocultar siempre: términos que se ocultan si aparecen (además de la detección automática).
 # Una entrada por línea:  valor   o   valor;TIPO
 # TIPOS: PERSONA, LUGAR, ORGANIZACION, EMAIL, TELEFONO, IBAN, DNI, NIE, NSS,
 #        DIRECCION, CP, MATRICULA, FECHA, DATO

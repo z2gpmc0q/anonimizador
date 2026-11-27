@@ -41,6 +41,8 @@ for _n in LISTAS:
         shutil.copyfile(Path(__file__).parent / "listas_defecto" / f"{_n}.txt", DIR_LISTAS / f"{_n}.txt")
 RE_ID = re.compile(r"^[0-9a-f]{32}$")
 ESTATICO = Path(__file__).parent / "static"
+_RUTA_VERSION = Path(__file__).resolve().parent.parent / "VERSION"
+VERSION = "v" + _RUTA_VERSION.read_text().strip() if _RUTA_VERSION.is_file() else "dev"
 
 app = FastAPI(title="Anonimizador", docs_url=None, redoc_url=None, openapi_url=None)
 seguridad = HTTPBasic(realm="Anonimizador")
@@ -116,7 +118,7 @@ def _escribe(d: Path, nombre: str, datos) -> None:
 
 @app.get("/salud", include_in_schema=False)
 def salud():
-    return {"ok": True, "modelos_cargados": detector.modelos_cargados()}
+    return {"ok": True, "version": VERSION, "modelos_cargados": detector.modelos_cargados()}
 
 
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(autentica)])

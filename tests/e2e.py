@@ -81,6 +81,10 @@ def analiza_y_genera(archivo: Path, idioma="auto", conversacion=""):
 
 espera_salud()
 print("Contenedor listo")
+st, salud = peticion("GET", "/salud", auth=False)
+version_esperada = "v" + (Path(__file__).resolve().parents[1] / "VERSION").read_text().strip() \
+    if (Path(__file__).resolve().parents[1] / "VERSION").is_file() else None
+print(f"  INFO  versión de la imagen: {salud.get('version')}")
 
 print("\n[Seguridad]")
 st, _ = peticion("GET", "/api/conversaciones", auth=False)

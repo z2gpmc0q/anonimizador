@@ -1,5 +1,10 @@
 # Versiones
 
+## v1.0.1 — 27/11/2026
+
+- La app muestra su número de versión en la cabecera (y en `/salud`), para comprobar qué versión hay instalada.
+- Documentación al día: nombres de las listas («Ocultar siempre» / «No ocultar nunca»), versiones fijas en el compose, proceso de publicación y licencias.
+
 ## v1.0.0 — 27/11/2026
 
 Primera versión numerada.

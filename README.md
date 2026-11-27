@@ -1,20 +1,22 @@
 # Anonimizador local de documentos
 
-Herramienta web que corre en el NAS (Docker) para quitar los datos personales de un documento **antes** de enviarlo a un LLM externo (ChatGPT, Claude, Gemini…) y, después, **volver a poner los datos reales** en la respuesta del LLM.
+Herramienta web que corre en el NAS (Docker) para quitar los datos personales de un documento **antes** de enviarlo a un LLM externo (ChatGPT, Claude, Gemini…) y, si lo necesitas, **volver a poner los datos reales** en la respuesta del LLM.
+
+**Versión actual: v1.0.1.** Los cambios de cada versión están en [CHANGELOG.md](CHANGELOG.md) y en *Releases*. La versión instalada aparece en la cabecera de la app.
 
 Todo el procesamiento es local: el documento no sale del NAS y el contenedor no hace ninguna conexión a Internet mientras funciona (los modelos van dentro de la imagen; GitHub la prueba en una red sin Internet antes de publicarla).
 
 ```
 PDF / foto ──► OCR (si es escaneado) ──► detección ──► TÚ REVISAS ──► texto con [PERSONA_1], [DNI_1]…  ──► LLM externo
-                                                                   └► PDF tachado en negro                        │
-                                   respuesta con datos reales ◄── restaurar ◄── respuesta del LLM ◄───────────────┘
+                                                   (sobre el documento)  └► PDF tachado en negro              │
+                         respuesta con datos reales ◄── restaurar (opcional) ◄── respuesta del LLM ◄──────────┘
 ```
 
 ## Qué detecta
 
 | Marcador | Qué es | Cómo |
 |---|---|---|
-| `PERSONA` | Nombres y apellidos | spaCy + GLiNER + tu lista «Siempre anonimizar» |
+| `PERSONA` | Nombres y apellidos | spaCy + GLiNER + tu lista «Ocultar siempre» |
 | `LUGAR` | Ciudades, países, lugares | Modelo de lenguaje |
 | `ORGANIZACION` | Empresas, organismos | Modelo de lenguaje (**desmarcado por defecto**) |
 | `DNI`, `NIE` | Documentos de identidad | Patrón + **letra de control verificada** |
@@ -31,7 +33,7 @@ PDF / foto ──► OCR (si es escaneado) ──► detección ──► TÚ RE
 
 Idiomas: **español** (modelo grande, máxima calidad), **catalán** e **inglés** (modelo mediano). El idioma se detecta automáticamente en cada página.
 
-**Doble detector:** además de spaCy y las reglas, un segundo modelo especializado en datos personales, **GLiNER** (`urchade/gliner_multi_pii-v1`, Apache-2.0, multilingüe), repasa cada página. Encuentra nombres y direcciones que se le escapan al primero, sobre todo en mayúsculas o en tablas. En la tabla de revisión, lo que solo ha encontrado él aparece como «GLiNER». Se desactiva con `GLINER: "0"`.
+**Doble detector:** además de spaCy y las reglas, un segundo modelo especializado en datos personales, **GLiNER** (`urchade/gliner_multi_pii-v1`, Apache-2.0, multilingüe), repasa cada página. Encuentra nombres y direcciones que se le escapan al primero, sobre todo en mayúsculas o en tablas. Se desactiva con `GLINER: "0"`.
 
 **Varios documentos al mismo chat (opcional):** en *Opciones → Marcadores* puedes elegir «Los mismos que …» un documento anterior, para que la misma persona tenga el mismo marcador en ambos. Por defecto cada documento va solo.
 
@@ -50,7 +52,7 @@ Idiomas: **español** (modelo grande, máxima calidad), **catalán** e **inglés
 | GLiNER | Segundo detector de datos personales | github.com/urchade/GLiNER |
 | FastAPI | Servidor web | fastapi.tiangolo.com |
 
-El código propio está en `app/` (unas 1.000 líneas con la interfaz, comentadas), por si quieres revisarlo o que alguien lo audite.
+El código propio está en `app/` (unas 1.700 líneas con la interfaz, comentadas), por si quieres revisarlo o que alguien lo audite.
 
 ---
 
@@ -59,16 +61,17 @@ El código propio está en `app/` (unas 1.000 líneas con la interfaz, comentada
 Cada vez que cambia el código, y además cada lunes para recoger parches de seguridad, GitHub Actions:
 
 1. ejecuta las pruebas de la lógica propia;
-2. construye la imagen con los modelos de idioma dentro;
+2. construye la imagen con los modelos dentro (spaCy es/ca/en y GLiNER);
 3. la arranca **sin acceso a Internet** y con el mismo endurecimiento que en el NAS;
-4. le pasa un contrato ficticio (español, catalán e inglés) y un escaneado con OCR, y comprueba que detecta, tacha, verifica y restaura;
-5. **solo si todo pasa**, la publica en `ghcr.io/z2gpmc0q/anonimizador:latest`.
+4. le pasa un contrato ficticio (español, catalán e inglés, con DNI, NIE, IBAN, CUPS, referencia catastral, póliza…) y un escaneado con OCR, y comprueba que detecta, tacha, verifica y restaura, y que dos documentos pueden compartir marcadores;
+5. mide la RAM al arrancar, con los modelos cargados y tras la inactividad (aparece en el resumen de cada ejecución);
+6. **solo si todo pasa**, la publica como `ghcr.io/z2gpmc0q/anonimizador:vX.Y.Z` (el número del archivo `VERSION`) y como `latest`, y si la versión es nueva crea su entrada en **Releases** con las notas de `CHANGELOG.md`.
 
 Puedes ver cada ejecución en la pestaña **Actions** del repositorio.
 
 ## Instalación en el NAS (sin SSH)
 
-Tiempo: unos 10 minutos, más la descarga de la imagen (aproximadamente 2–3 GB, una sola vez).
+Tiempo: unos 10 minutos, más la descarga de la imagen (aproximadamente 4–5 GB, una sola vez por versión).
 
 ### 1. Comprobar que la imagen está publicada
 
@@ -80,7 +83,7 @@ En GitHub, en tu repositorio `anonimizador`:
 
 1. Abre **Docker** en UGOS → **Proyecto** → **Crear**, igual que con Immich o Paperless.
 2. Nombre: `anonimizador`.
-3. Pega el contenido de `docker-compose.yml` y cambia `ANON_PASSWORD` por una contraseña larga (12 caracteres o más, distinta a la del NAS). Guárdala en tu gestor de contraseñas.
+3. Pega el contenido de `docker-compose.yml` (ya apunta a la versión actual, `v1.0.1`) y cambia `ANON_PASSWORD` por una contraseña larga (12 caracteres o más, distinta a la del NAS). Guárdala en tu gestor de contraseñas.
 4. **Desplegar**. UGOS descarga la imagen y arranca el contenedor. Tras 1–2 minutos, mientras carga los modelos, su estado pasa a *healthy* (en ejecución).
 
 No hay que crear carpetas ni cambiar permisos: los datos van en un volumen de Docker que se crea solo, con los permisos correctos.
@@ -97,19 +100,21 @@ El navegador pedirá usuario (`anon`) y la contraseña que pusiste.
 ### 4. Tus listas (recomendado, desde la web)
 
 Pestaña **Listas**:
-- **Siempre anonimizar**: nombres y apellidos de la familia, vuestra dirección, etc. Se anonimizan aunque el detector no los vea (por ejemplo, en mayúsculas o en una tabla):
+- **Ocultar siempre**: nombres y apellidos de la familia, vuestra dirección, nº de póliza, etc. Se ocultan aunque el detector no los vea (por ejemplo, en mayúsculas o en una tabla):
   ```
   María García López;PERSONA
   García López;PERSONA
   Carrer de Balmes 45;DIRECCION
   ```
-- **Nunca anonimizar**: palabras que el detector marca por error (Agencia Tributaria, tu banco…).
+- **No ocultar nunca**: palabras que el detector marca por error (Agencia Tributaria, tu banco, hospitales con nombre de persona…). Se compara el valor completo: añade la forma exacta que veas en la revisión.
 
 Pulsa **Guardar listas**.
 
 ---
 
 ## Cómo se usa
+
+La app tiene dos secciones: **Documento** (el flujo de tres pasos) y **Listas**.
 
 1. **Subir**: arrastra el PDF o la foto a la zona de subida, o púlsala para elegirlo. Luego pulsa **Buscar datos personales**. Un PDF digital tarda segundos; uno escaneado, aproximadamente 5–20 s por página.
 2. **Revisar**: ves el documento entero con los datos encontrados resaltados en colores según su tipo. Este es el paso importante:
@@ -127,7 +132,7 @@ Consejos:
 
 ## Limitaciones (léelas)
 
-- **Ninguna detección automática es perfecta.** Revisa siempre el texto antes de enviarlo. Los fallos típicos son nombres poco comunes, nombres en MAYÚSCULAS dentro de tablas y apodos. Usa la lista «Siempre anonimizar» para los nombres que se repiten.
+- **Ninguna detección automática es perfecta.** Revisa siempre el texto antes de enviarlo. Los fallos típicos son nombres poco comunes, nombres en MAYÚSCULAS dentro de tablas y apodos. Usa la lista «Ocultar siempre» para los nombres que se repiten, o selecciónalos en la revisión.
 - **Reidentificación por contexto**: «el alcalde de Vic en 2024» identifica a alguien aunque no aparezca su nombre. La herramienta no detecta eso.
 - **Imágenes dentro de PDF digitales** (firmas escaneadas, logotipos con nombre, sellos) no pasan por OCR, así que pueden quedar visibles en el PDF tachado. El texto de salida no las incluye.
 - **Escaneados de mala calidad o texto manuscrito**: si el OCR lee mal un nombre, no se detecta. Revisa con más cuidado.
@@ -149,7 +154,7 @@ Lo único que hay en GitHub es el código y la imagen, públicos y sin datos tuy
 
 ## Mantenimiento
 
-- **Versiones**: el compose usa una versión fija (`…/anonimizador:v1.0.0`). El número sale del archivo `VERSION`; cuando cambia, GitHub crea la versión en **Releases** con sus cambios (también en `CHANGELOG.md`). Las reconstrucciones semanales actualizan la imagen de la misma versión con los parches de seguridad.
+- **Versiones**: el compose usa una versión fija (`…/anonimizador:v1.0.1`). El número sale del archivo `VERSION`; cuando cambia, GitHub crea la versión en **Releases** con sus cambios (también en `CHANGELOG.md`). Las reconstrucciones semanales actualizan la imagen de la misma versión con los parches de seguridad.
 - **Actualizar**: en la app Docker de UGOS, edita el proyecto `anonimizador`, cambia el número de versión en la línea `image:` y vuelve a desplegarlo. Al cambiar el número, UGOS descarga la imagen nueva sí o sí. Los datos y las listas se conservan.
 - **Volver atrás**: si una versión da problemas, pon el número anterior y despliega de nuevo.
 - **Sin Internet**: la app no hace conexiones salientes (GitHub lo prueba en una red sin salida). No uses `networks: internal: true` en el compose: esa red impide publicar el puerto 8010 y dejarías de poder abrir la web.
@@ -171,10 +176,10 @@ Lo único que hay en GitHub es el código y la imagen, públicos y sin datos tuy
 
 ## Pruebas
 
-- `tests/test_basico.py`: lógica propia (DNI/NIE/NSS, direcciones, seudonimización y restauración). No necesita Docker.
+- `tests/test_basico.py`: lógica propia (DNI/NIE/NSS, CUPS, catastro, direcciones, tratamientos, seudonimización, marcadores compartidos y restauración). No necesita Docker.
 - `tests/e2e.py`: prueba completa contra el contenedor; la ejecuta GitHub Actions en cada publicación.
 - `tests/generar_fixtures.py`: genera los documentos ficticios de prueba.
 
 ## Licencias
 
-Uso personal. Componentes: Presidio (MIT), spaCy (MIT; algunos modelos de idioma son GPL), PyMuPDF (AGPL), OCRmyPDF (MPL-2.0), Tesseract (Apache-2.0), Lingua (Apache-2.0) y FastAPI (MIT). Las licencias copyleft (GPL/AGPL) solo importan si redistribuyes el software, no para uso doméstico.
+Uso personal. Componentes: Presidio (MIT), spaCy (MIT; algunos modelos de idioma son GPL), GLiNER y su modelo (Apache-2.0), PyTorch (BSD), PyMuPDF (AGPL), OCRmyPDF (MPL-2.0), Tesseract (Apache-2.0), Lingua (Apache-2.0), python-stdnum (LGPL) y FastAPI (MIT). Las licencias copyleft (GPL/AGPL) solo importan si redistribuyes el software, no para uso doméstico.

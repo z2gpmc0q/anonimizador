@@ -1,4 +1,4 @@
-# Términos que NUNCA se anonimizan (falsos positivos habituales).
+# No ocultar nunca: términos que el detector marca por error (falsos positivos habituales).
 # Un valor por línea; se comparan sin distinguir mayúsculas.
 Agencia Tributaria
 Seguridad Social

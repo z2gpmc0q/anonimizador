@@ -38,6 +38,7 @@ ENV HF_HUB_OFFLINE=1 \
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin anon \
  && mkdir -p /data && chown 10001:10001 /data && chmod 700 /data
 COPY --chown=root:root app ./app
+COPY --chown=root:root VERSION ./VERSION
 
 USER 10001
 EXPOSE 8010

@@ -55,6 +55,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .marca { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 17px; letter-spacing: -.01em; }
 .marca i { display: inline-block; width: 30px; height: 12px; border-radius: 3px; background: var(--tinta); position: relative; }
 .marca i::after { content: ""; position: absolute; left: 4px; top: 4px; width: 14px; height: 4px; border-radius: 2px; background: var(--c-persona); }
+.marca .version { font-weight: 450; font-size: 12.5px; color: var(--gris); }
 nav { display: flex; gap: 2px; background: var(--hoja); border: 1px solid var(--linea); border-radius: 999px; padding: 3px; }
 nav button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--gris); font-size: 14px; }
 nav button.on { background: var(--tinta); color: var(--papel); }
@@ -210,7 +211,7 @@ body.con-barra main { padding-bottom: 140px; }
 </head>
 <body>
 <header>
-  <div class="marca"><i aria-hidden="true"></i><span>Anonimizador</span></div>
+  <div class="marca"><i aria-hidden="true"></i><span>Anonimizador</span><small id="version" class="version"></small></div>
   <nav aria-label="Secciones">
     <button id="t-doc" class="on" onclick="pestana('doc')">Documento</button>
     <button id="t-list" onclick="pestana('list')">Listas</button>
@@ -654,6 +655,7 @@ async function guardarListas() {
 }
 
 cargarAnteriores();
+fetch('/salud').then(r => r.json()).then(d => { if (d.version) $('version').textContent = d.version; }).catch(() => {});
 </script>
 </body>
 </html>
