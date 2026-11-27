@@ -149,7 +149,7 @@ Lo único que hay en GitHub es el código y la imagen, públicos y sin datos tuy
 
 ## Mantenimiento
 
-- **Versiones**: el compose usa una versión fija (`…/anonimizador:v1.0.0`). Cada versión nueva aparece en la sección **Releases** del repositorio, con sus cambios (también en `CHANGELOG.md`).
+- **Versiones**: el compose usa una versión fija (`…/anonimizador:v1.0.0`). El número sale del archivo `VERSION`; cuando cambia, GitHub crea la versión en **Releases** con sus cambios (también en `CHANGELOG.md`). Las reconstrucciones semanales actualizan la imagen de la misma versión con los parches de seguridad.
 - **Actualizar**: en la app Docker de UGOS, edita el proyecto `anonimizador`, cambia el número de versión en la línea `image:` y vuelve a desplegarlo. Al cambiar el número, UGOS descarga la imagen nueva sí o sí. Los datos y las listas se conservan.
 - **Volver atrás**: si una versión da problemas, pon el número anterior y despliega de nuevo.
 - **Sin Internet**: la app no hace conexiones salientes (GitHub lo prueba en una red sin salida). No uses `networks: internal: true` en el compose: esa red impide publicar el puerto 8010 y dejarías de poder abrir la web.
