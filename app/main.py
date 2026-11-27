@@ -20,7 +20,7 @@ from .detector import Detector
 USUARIO = os.environ.get("ANON_USER", "")
 CLAVE = os.environ.get("ANON_PASSWORD", "")
 DIR_DATOS = Path(os.environ.get("DATA_DIR", "/data"))
-RETENCION_DIAS = float(os.environ.get("RETENTION_DAYS", "7"))
+RETENCION_DIAS = float(os.environ.get("RETENTION_DAYS", "1"))
 MAX_BYTES = int(os.environ.get("MAX_MB", "50")) * 1024 * 1024
 
 if not USUARIO or len(CLAVE) < 12:
@@ -63,6 +63,18 @@ def _limpia_antiguos() -> None:
     for f in DIR_CONV.glob("*.json"):
         if f.stat().st_mtime < limite:
             f.unlink(missing_ok=True)
+
+
+def _contexto(texto: str, valor: str, ancho: int = 45) -> dict:
+    """Trozo de texto alrededor de la primera aparición: {antes, valor, despues}."""
+    m = seudo.regex_valor(valor).search(texto)
+    if not m:
+        return {"antes": "", "valor": valor, "despues": ""}
+    plano = lambda t: " ".join(t.split())  # noqa: E731
+    antes = plano(texto[max(0, m.start() - ancho):m.start()])
+    despues = plano(texto[m.end():m.end() + ancho])
+    return {"antes": ("…" if m.start() > ancho else "") + antes, "valor": plano(m.group(0)),
+            "despues": despues + ("…" if m.end() + ancho < len(texto) else "")}
 
 
 def _ruta_conv(cid: str) -> Path:
@@ -158,8 +170,12 @@ def analizar(archivo: UploadFile = File(...), terminos: str = Form(""), idioma: 
         conv["documentos"].append({"id": job, "nombre": nombre})
         _guarda_conv(conv)
 
-    # Valores que ya tienen marcador en la conversación: se aplicarán siempre
     texto = pipeline.texto_con_paginas(paginas)
+    # Frase donde aparece cada dato, para revisar sin abrir el documento
+    for e in entidades:
+        e["contexto"] = _contexto(texto, e["valor"])
+
+    # Valores que ya tienen marcador en la conversación: se aplicarán siempre
     previos = {seudo.normaliza(e["valor"]): e["marcador"] for e in conv["mapa"]}
     for e in entidades:
         if seudo.normaliza(e["valor"]) in previos:
@@ -171,7 +187,7 @@ def analizar(archivo: UploadFile = File(...), terminos: str = Form(""), idioma: 
             entidades.append({"id": siguiente, "valor": m["valor"], "tipo": m["tipo"], "score": 1.0,
                               "origen": "conversación", "etiqueta": reglas.ETIQUETAS.get(m["tipo"], "DATO"),
                               "apariciones": seudo.cuenta(texto, m["valor"]), "marcado": True,
-                              "marcador": m["marcador"]})
+                              "marcador": m["marcador"], "contexto": _contexto(texto, m["valor"])})
             siguiente += 1
 
     info = {"id": job, "nombre": nombre, "creado": time.time(), "paginas": len(paginas), "ocr": ocr,

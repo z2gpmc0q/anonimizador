@@ -2,305 +2,524 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E9EDF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12151C" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Anonimizador</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231C2433'/%3E%3Crect x='7' y='9' width='18' height='4' rx='1' fill='%23F3D34A'/%3E%3Crect x='7' y='16' width='11' height='4' rx='1' fill='%23fff'/%3E%3Crect x='7' y='23' width='15' height='3' rx='1' fill='%23fff' opacity='.5'/%3E%3C/svg%3E">
 <style>
-  :root { --fg:#1d1d1f; --mut:#6e6e73; --bd:#d2d2d7; --bg:#f5f5f7; --ac:#0b57d0; --ok:#1e7d32; --warn:#b26a00; --err:#b3261e; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--fg); background:var(--bg); }
-  header { background:#fff; border-bottom:1px solid var(--bd); padding:14px 24px; display:flex; gap:24px; align-items:center; }
-  header h1 { font-size:17px; margin:0; }
-  nav button { background:none; border:0; padding:6px 10px; font:inherit; color:var(--mut); cursor:pointer; border-radius:6px; }
-  nav button.on { color:var(--fg); background:var(--bg); font-weight:600; }
-  main { max-width:1100px; margin:24px auto; padding:0 24px; }
-  section.card { background:#fff; border:1px solid var(--bd); border-radius:10px; padding:20px; margin-bottom:18px; }
-  h2 { font-size:15px; margin:0 0 12px; }
-  label.lbl { display:block; font-size:13px; color:var(--mut); margin:12px 0 4px; }
-  textarea, input[type=text], select { width:100%; font:13px ui-monospace,Menlo,Consolas,monospace; border:1px solid var(--bd); border-radius:6px; padding:8px; }
-  textarea.grande { min-height:320px; }
-  .btn { background:var(--ac); color:#fff; border:0; border-radius:6px; padding:8px 16px; font:inherit; cursor:pointer; }
-  .btn.sec { background:#fff; color:var(--fg); border:1px solid var(--bd); }
-  .btn:disabled { opacity:.5; cursor:wait; }
-  .fila { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--bg); }
-  th { color:var(--mut); font-weight:500; position:sticky; top:0; background:#fff; }
-  .tabla { max-height:420px; overflow:auto; border:1px solid var(--bd); border-radius:6px; }
-  .tag { font:11px ui-monospace,monospace; background:var(--bg); padding:2px 6px; border-radius:4px; }
-  .msg { padding:10px 12px; border-radius:6px; margin-top:12px; font-size:13px; }
-  .msg.ok { background:#e8f5e9; color:var(--ok); } .msg.warn { background:#fff4e5; color:var(--warn); } .msg.err { background:#fdecea; color:var(--err); }
-  .mut { color:var(--mut); font-size:13px; }
-  .oculto { display:none; }
-  a.btn { text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
-  select, input[type=text] { font:14px system-ui,-apple-system,"Segoe UI",sans-serif; }
-  label.mut select, label.mut input { margin-top:4px; }
-
-  /* ---------- Móvil ---------- */
-  @media (max-width: 640px) {
-    header { flex-direction:column; align-items:stretch; gap:8px; padding:10px 12px; position:sticky; top:0; z-index:5; }
-    header h1 { display:none; }
-    nav { display:flex; gap:4px; background:var(--bg); padding:3px; border-radius:8px; }
-    nav button { flex:1; padding:8px 4px; font-size:14px; }
-    nav button.on { background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.08); }
-    main { margin:12px auto; padding:0 10px; }
-    section.card { padding:14px; border-radius:12px; }
-    .fila > label, .fila > input[type=file], .fila > select { flex:1 1 100% !important; width:100%; }
-    label.mut { display:block; }
-    label.mut select, label.mut input[type=text] { display:block; width:100% !important; }
-    .fila .btn { flex:1 1 auto; min-height:44px; }
-    select, input[type=text], textarea { font-size:16px; }   /* evita el zoom automático al escribir */
-    textarea.grande { min-height:55vh; font-size:13px; }
-    .tabla { max-height:none; overflow:visible; border:0; }
-    /* La tabla de revisión se convierte en tarjetas */
-    #c-revision thead { display:none; }
-    #c-revision tr { display:grid; grid-template-columns:40px auto auto 1fr;
-                     grid-template-areas:"chk val val val" "chk tag n conf";
-                     gap:4px 8px; padding:10px 4px; border-bottom:1px solid var(--bd); align-items:center; }
-    #c-revision td { padding:0; border:0; }
-    #c-revision td:nth-child(1) { grid-area:chk; align-self:start; }
-    #c-revision td:nth-child(1) input { width:22px; height:22px; margin:2px 0 0; }
-    #c-revision td:nth-child(2) { grid-area:val; font-size:15px; word-break:break-word; }
-    #c-revision td:nth-child(3) { grid-area:tag; }
-    #c-revision td:nth-child(4) { grid-area:n; color:var(--mut); font-size:12px; }
-    #c-revision td:nth-child(4)::before { content:"×"; }
-    #c-revision td:nth-child(5) { grid-area:conf; color:var(--mut); font-size:12px; text-align:right; }
-    #c-resultado details table td { word-break:break-word; }
+/* ===== Tokens ===== */
+:root {
+  --papel: #E9EDF3;      /* fondo: papel gris azulado */
+  --hoja: #FBFCFD;       /* superficies */
+  --tinta: #1C2433;      /* texto y barras de tachado */
+  --gris: #5D6879;       /* texto secundario */
+  --linea: #D3DAE4;
+  --accion: #1C2433;     /* el botón principal es tinta */
+  --sobre-accion: #FFFFFF;
+  --ok: #1F7A4D; --ok-fondo: #E3F3EA;
+  --aviso: #8A5A00; --aviso-fondo: #FFF3D6;
+  --error: #A1281E; --error-fondo: #FBE6E3;
+  /* rotuladores por categoría */
+  --c-persona: #F3D34A;  --c-id: #F6B8C8;  --c-contacto: #A9E3C6;
+  --c-vivienda: #B9D3F7; --c-finanzas: #D5C4F4; --c-otros: #D9DEE6;
+  --serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, "Iowan Old Style", Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --papel: #12151C; --hoja: #1B202A; --tinta: #E8ECF2; --gris: #9AA5B5; --linea: #2C3442;
+    --accion: #F3D34A; --sobre-accion: #1C2433;
+    --ok: #6FD3A0; --ok-fondo: #173126; --aviso: #F3C969; --aviso-fondo: #33290F;
+    --error: #FF9A8F; --error-fondo: #3A1C19;
+    --c-persona: #C9A920; --c-id: #C06A84; --c-contacto: #3E9C72;
+    --c-vivienda: #4D7FC4; --c-finanzas: #7D62B8; --c-otros: #4A5466;
   }
+}
+
+/* ===== Base ===== */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--papel); color: var(--tinta); font: 16px/1.5 var(--sans); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--c-vivienda); outline-offset: 2px; border-radius: 6px; }
+.oculto { display: none !important; }
+code { font-size: .92em; }
+
+/* ===== Cabecera ===== */
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  max-width: 820px; margin: 0 auto; padding: 18px 20px 6px; }
+.marca { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 17px; letter-spacing: -.01em; }
+.marca i { display: inline-block; width: 30px; height: 12px; border-radius: 3px; background: var(--tinta); position: relative; }
+.marca i::after { content: ""; position: absolute; left: 4px; top: 4px; width: 14px; height: 4px; border-radius: 2px; background: var(--c-persona); }
+nav { display: flex; gap: 2px; background: var(--hoja); border: 1px solid var(--linea); border-radius: 999px; padding: 3px; }
+nav button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--gris); font-size: 14px; }
+nav button.on { background: var(--tinta); color: var(--papel); }
+
+main { max-width: 820px; margin: 0 auto; padding: 8px 20px 60px; }
+
+/* ===== Pasos ===== */
+.pasos { display: flex; gap: 8px; list-style: none; margin: 18px 0 22px; padding: 0; counter-reset: paso; }
+.pasos li { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--gris); counter-increment: paso; }
+.pasos li::before { content: counter(paso); flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 650; border: 1.5px solid var(--linea); background: var(--hoja); }
+.pasos li::after { content: ""; flex: 1; height: 1.5px; background: var(--linea); }
+.pasos li:last-child::after { display: none; }
+.pasos li.hecho, .pasos li.activo { color: var(--tinta); }
+.pasos li.activo::before { background: var(--tinta); color: var(--papel); border-color: var(--tinta); }
+.pasos li.hecho::before { content: "✓"; background: var(--c-persona); color: #1C2433; border-color: transparent; }
+
+/* ===== Hoja (superficie principal) ===== */
+.hoja { background: var(--hoja); border: 1px solid var(--linea); border-radius: 14px; padding: 26px; }
+h2 { font-size: 22px; line-height: 1.25; margin: 0 0 6px; letter-spacing: -.015em; font-weight: 650; }
+.sub { color: var(--gris); margin: 0 0 20px; max-width: 62ch; }
+
+/* ===== Zona de subida ===== */
+.zona { position: relative; display: grid; place-items: center; text-align: center; gap: 6px; min-height: 230px; padding: 28px;
+  border: 2px dashed var(--linea); border-radius: 12px; cursor: pointer; overflow: hidden;
+  background: repeating-linear-gradient(transparent 0 31px, color-mix(in srgb, var(--linea) 55%, transparent) 31px 32px); }
+.zona:hover, .zona.encima { border-color: var(--tinta); }
+.zona .muestra { font-family: var(--serif); font-size: 20px; }
+.zona .muestra span { background: var(--tinta); color: var(--tinta); border-radius: 3px; padding: 0 2px; }
+.zona strong { font-size: 17px; }
+.zona small { color: var(--gris); }
+.zona input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.archivo { display: inline-flex; align-items: center; gap: 8px; background: var(--c-otros); color: #1C2433; padding: 4px 12px; border-radius: 999px; font-size: 14px; }
+/* escaneo durante el análisis (respuesta a la acción del usuario) */
+.zona.analizando { cursor: progress; border-style: solid; }
+.zona.analizando::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; top: 0;
+  background: var(--c-persona); box-shadow: 0 0 18px 4px color-mix(in srgb, var(--c-persona) 70%, transparent); animation: escaneo 1.6s ease-in-out infinite alternate; }
+@keyframes escaneo { to { top: calc(100% - 3px); } }
+
+details.opciones { margin-top: 16px; }
+details.opciones summary { cursor: pointer; color: var(--gris); font-size: 15px; }
+.campos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.campos .ancho { grid-column: 1 / -1; }
+label.campo { display: grid; gap: 6px; font-size: 14px; color: var(--gris); }
+select, input[type=text], textarea { width: 100%; background: var(--papel); border: 1px solid var(--linea); border-radius: 8px; padding: 9px 11px; color: var(--tinta); }
+textarea { resize: vertical; }
+
+/* ===== Botones ===== */
+.acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 20px; }
+.btn { appearance: none; border: 1px solid var(--linea); background: var(--hoja); color: var(--tinta); border-radius: 999px;
+  padding: 11px 20px; font-weight: 600; font-size: 15px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.btn:hover { border-color: var(--tinta); }
+.btn.principal { background: var(--accion); color: var(--sobre-accion); border-color: var(--accion); }
+.btn.principal:hover { filter: brightness(1.15); }
+.btn.discreto { border-color: transparent; background: none; color: var(--gris); padding-inline: 8px; }
+.btn.discreto:hover { color: var(--tinta); }
+.btn:disabled { opacity: .55; cursor: progress; }
+.estado { color: var(--gris); font-size: 14px; }
+
+/* ===== Mensajes ===== */
+.msg { border-radius: var(--r); padding: 12px 14px; margin-top: 16px; font-size: 15px; }
+.msg.ok { background: var(--ok-fondo); color: var(--ok); }
+.msg.aviso { background: var(--aviso-fondo); color: var(--aviso); }
+.msg.error { background: var(--error-fondo); color: var(--error); }
+
+/* ===== Revisión ===== */
+.resumen { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--gris); font-size: 14px; margin: -8px 0 18px; }
+.grupo { border-top: 1px solid var(--linea); padding: 14px 0 4px; }
+.grupo-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.grupo-cab h3 { margin: 0; font-size: 15px; font-weight: 650; }
+.grupo-cab h3 i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--c); margin-right: 8px; vertical-align: -1px; }
+.grupo-cab button { flex: none; border: 0; background: none; color: var(--gris); font-size: 13px; cursor: pointer; padding: 6px; white-space: nowrap; }
+.dato { display: grid; grid-template-columns: 28px 1fr auto; gap: 2px 10px; align-items: start; padding: 9px 0; }
+.dato input { width: 20px; height: 20px; margin: 3px 0 0; accent-color: var(--tinta); }
+.dato .valor { font-weight: 600; word-break: break-word; }
+.dato .valor mark { background: linear-gradient(transparent 45%, var(--c) 45%); color: inherit; padding: 0 1px; }
+.dato .meta { color: var(--gris); font-size: 13px; text-align: right; white-space: nowrap; }
+.dato .ctx { grid-column: 2 / -1; color: var(--gris); font-family: var(--serif); font-size: 14.5px; line-height: 1.45; }
+.dato .ctx mark { background: var(--c); color: #1C2433; border-radius: 2px; padding: 0 2px; }
+.dato.apagado .valor, .dato.apagado .ctx { opacity: .5; }
+.dato.apagado .valor mark { background: none; text-decoration: line-through; }
+.fijo { font-size: 12px; color: var(--gris); }
+
+/* ===== Resultado: documento con barras de tinta ===== */
+.documento { font-family: var(--serif); font-size: 16.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word;
+  background: var(--papel); border: 1px solid var(--linea); border-radius: 12px; padding: 22px 24px; max-height: 62vh; overflow: auto; }
+.documento .nota { display: block; color: var(--gris); font-family: var(--sans); font-size: 13.5px; line-height: 1.5; margin-bottom: 14px; white-space: normal; }
+.documento .pag { display: block; color: var(--gris); font-family: var(--sans); font-size: 12.5px; margin: 10px 0 2px; }
+.barra { display: inline-block; background: var(--tinta); color: var(--c); font-family: var(--sans); font-size: 11.5px; font-weight: 700;
+  letter-spacing: .02em; line-height: 1.6; padding: 0 7px; border-radius: 3px; vertical-align: 1px; white-space: nowrap;
+  clip-path: inset(0 100% 0 0); animation: tinta .45s cubic-bezier(.6,0,.2,1) forwards; animation-delay: calc(var(--i) * 18ms); }
+@keyframes tinta { to { clip-path: inset(0 0 0 0); } }
+@media (prefers-color-scheme: dark) { .barra { background: var(--c); color: #12151C; } }
+@media (prefers-reduced-motion: reduce) {
+  .barra { animation: none; clip-path: none; }
+  .zona.analizando::after { animation: none; top: 50%; }
+}
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 12px 0 0; font-size: 13px; color: var(--gris); }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda i { width: 10px; height: 10px; border-radius: 2px; background: var(--c); }
+
+.bloque { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--linea); }
+.bloque h3 { margin: 0 0 4px; font-size: 17px; }
+
+/* ===== Listas ===== */
+.listas { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.listas textarea { min-height: 340px; font-size: 14px; line-height: 1.5; }
+.listas h3 { margin: 0 0 4px; font-size: 16px; }
+.listas p { margin: 0 0 10px; color: var(--gris); font-size: 14px; }
+
+/* ===== Móvil ===== */
+@media (max-width: 640px) {
+  header { padding: 12px 14px 0; }
+  .marca span { display: none; }
+  main { padding: 4px 12px 40px; }
+  .hoja { padding: 18px 16px; border-radius: 12px; }
+  h2 { font-size: 20px; }
+  .pasos li { font-size: 0; }               /* en móvil solo los números */
+  .pasos li::before { font-size: 12px; }
+  .campos, .listas { grid-template-columns: 1fr; }
+  .zona { min-height: 190px; }
+  .documento { padding: 16px; font-size: 15.5px; max-height: none; }
+  .acciones .btn { flex: 1 1 auto; justify-content: center; }
+  select, input[type=text], textarea { font-size: 16px; }
+}
 </style>
 </head>
 <body>
 <header>
-  <h1>Anonimizador local</h1>
-  <nav>
-    <button id="t-anon" class="on" onclick="pestana('anon')">Anonimizar</button>
-    <button id="t-rest" onclick="pestana('rest')">Restaurar</button>
+  <div class="marca"><i aria-hidden="true"></i><span>Anonimizador</span></div>
+  <nav aria-label="Secciones">
+    <button id="t-doc" class="on" onclick="pestana('doc')">Documento</button>
     <button id="t-list" onclick="pestana('list')">Listas</button>
   </nav>
 </header>
+
 <main>
-  <!-- ANONIMIZAR -->
-  <div id="p-anon">
-    <section class="card">
-      <h2>1 · Documento</h2>
-      <div class="fila" style="margin-top:0">
-        <input type="file" id="archivo" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" style="flex:1">
-        <label class="mut">Idioma
-          <select id="idioma" style="width:auto">
-            <option value="auto">Automático (por página)</option>
+<!-- ================= DOCUMENTO ================= -->
+<div id="p-doc">
+  <ol class="pasos" aria-label="Progreso">
+    <li id="paso1" class="activo">Subir</li>
+    <li id="paso2">Revisar</li>
+    <li id="paso3">Copiar al LLM</li>
+  </ol>
+
+  <!-- Paso 1 -->
+  <section class="hoja" id="s-subir">
+    <h2>Quita los datos personales antes de enviarlo a un LLM</h2>
+    <p class="sub">Todo se procesa en tu NAS. Nada sale de casa hasta que tú copies el resultado.</p>
+
+    <label class="zona" id="zona">
+      <input type="file" id="archivo" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" aria-label="Elegir archivo">
+      <div class="muestra" aria-hidden="true">Contrato de <span>Laura Martínez</span>, DNI <span>45127839E</span></div>
+      <strong id="zona-titulo">Suelta aquí un PDF o una foto</strong>
+      <small id="zona-sub">o púlsalo para elegirlo · PDF, JPG, PNG o TIFF, hasta 50 MB</small>
+    </label>
+
+    <details class="opciones">
+      <summary>Opciones</summary>
+      <div class="campos">
+        <label class="campo">Idioma
+          <select id="idioma">
+            <option value="auto">Detectar automáticamente</option>
             <option value="es">Español</option><option value="ca">Català</option><option value="en">English</option>
           </select></label>
+        <label class="campo">Marcadores
+          <select id="conv"><option value="">Nuevos para este documento</option></select></label>
+        <label class="campo ancho">Ocultar también (uno por línea)
+          <textarea id="terminos" rows="2" placeholder="Ana López;PERSONA"></textarea></label>
       </div>
-      <div class="fila">
-        <label class="mut" style="flex:1">Conversación
-          <select id="conv" onchange="$('nconv').classList.toggle('oculto', !!this.value)"></select></label>
-        <label class="mut" style="flex:1" id="nconv">Nombre (opcional)
-          <input type="text" id="nombre-conv" placeholder="p. ej. Alquiler piso Balmes"></label>
-      </div>
-      <p class="mut" style="margin:4px 0 0">Los documentos de una misma conversación comparten marcadores: la misma persona es siempre <code>[PERSONA_1]</code>. Usa una conversación por chat con Claude o Gemini.</p>
-      <label class="lbl">Términos adicionales a anonimizar (uno por línea; opcional <code>texto;TIPO</code>, p. ej. <code>Ana López;PERSONA</code>)</label>
-      <textarea id="terminos" rows="3"></textarea>
-      <div class="fila"><button class="btn" id="b-analizar" onclick="analizar()">Analizar</button><span id="e-analizar" class="mut"></span></div>
-      <div id="m-analizar"></div>
-    </section>
+    </details>
 
-    <section class="card oculto" id="c-revision">
-      <h2>2 · Revisa lo detectado</h2>
-      <p class="mut">Marca lo que debe anonimizarse. Organizaciones y fechas vienen desmarcadas por defecto. Si falta algo, añádelo abajo.</p>
-      <div class="fila" style="margin:0 0 8px">
-        <button class="btn sec" onclick="marcarTodo(true)">Marcar todo</button>
-        <button class="btn sec" onclick="marcarTodo(false)">Desmarcar todo</button>
-      </div>
-      <div class="tabla"><table>
-        <thead><tr><th></th><th>Valor detectado</th><th>Tipo</th><th>Veces</th><th>Confianza / origen</th></tr></thead>
-        <tbody id="tb-entidades"></tbody>
-      </table></div>
-      <label class="lbl">Añadir más (uno por línea, opcional <code>;TIPO</code>)</label>
-      <textarea id="extra" rows="2"></textarea>
-      <div class="fila">
-        <label><input type="checkbox" id="instr" checked> Incluir instrucción para el LLM sobre los marcadores</label>
-      </div>
-      <div class="fila"><button class="btn" id="b-generar" onclick="generar()">Generar versión anonimizada</button><span id="e-generar" class="mut"></span></div>
-    </section>
+    <div class="acciones">
+      <button class="btn principal" id="b-analizar" onclick="analizar()" disabled>Buscar datos personales</button>
+      <span class="estado" id="e-analizar" role="status"></span>
+    </div>
+    <div id="m-analizar"></div>
+  </section>
 
-    <section class="card oculto" id="c-resultado">
-      <h2>3 · Resultado</h2>
-      <div id="m-generar"></div>
-      <div class="fila">
-        <a class="btn sec" id="d-pdf" href="#">Descargar PDF tachado</a>
-        <a class="btn sec" id="d-txt" href="#">Descargar texto</a>
-        <button class="btn" onclick="copiar('salida')">Copiar texto</button>
-      </div>
-      <label class="lbl">Texto seudonimizado (esto es lo que puedes enviar al LLM)</label>
-      <textarea id="salida" class="grande" readonly></textarea>
-      <details style="margin-top:12px"><summary class="mut">Tabla de correspondencias (se queda en el NAS)</summary>
-        <div class="tabla" style="margin-top:8px"><table><tbody id="tb-mapa"></tbody></table></div>
+  <!-- Paso 2 -->
+  <section class="hoja oculto" id="s-revisar">
+    <h2>Revisa lo que se va a ocultar</h2>
+    <p class="sub">Desmarca lo que puede quedarse visible. Si falta algo, añádelo abajo.</p>
+    <div class="resumen" id="resumen"></div>
+    <div id="grupos"></div>
+    <label class="campo" style="margin-top:14px">Falta algo (uno por línea)
+      <textarea id="extra" rows="2" placeholder="Txema;PERSONA"></textarea></label>
+    <label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-size:15px">
+      <input type="checkbox" id="instr" checked style="width:18px;height:18px;accent-color:var(--tinta)">
+      Añadir una nota para que el LLM respete los marcadores</label>
+    <div class="acciones">
+      <button class="btn principal" id="b-generar" onclick="generar()">Ocultar datos</button>
+      <button class="btn discreto" onclick="reiniciar()">Empezar de nuevo</button>
+      <span class="estado" id="e-generar" role="status"></span>
+    </div>
+  </section>
+
+  <!-- Paso 3 -->
+  <section class="hoja oculto" id="s-resultado">
+    <h2>Listo para copiar</h2>
+    <p class="sub">Así lo verá el LLM. Los datos reales se han sustituido por marcadores.</p>
+    <div id="m-generar"></div>
+    <div class="documento" id="documento" tabindex="0" aria-label="Texto anonimizado"></div>
+    <div class="leyenda" id="leyenda"></div>
+    <div class="acciones">
+      <button class="btn principal" id="b-copiar" onclick="copiar()">Copiar texto</button>
+      <a class="btn" id="d-pdf" href="#">PDF tachado</a>
+      <a class="btn" id="d-txt" href="#">Texto (.txt)</a>
+    </div>
+
+    <div class="bloque">
+      <details id="restaurar">
+        <summary class="btn discreto" style="display:inline-flex;padding-left:0">Ya tengo la respuesta: volver a poner los nombres</summary>
+        <p class="sub" style="margin-top:8px">Pega la respuesta del LLM. Los marcadores se cambian por los datos reales solo en tu pantalla.</p>
+        <textarea id="respuesta" rows="6" aria-label="Respuesta del LLM"></textarea>
+        <div class="acciones"><button class="btn" onclick="restaurar()">Poner los nombres</button></div>
+        <div id="m-rest"></div>
+        <div class="documento oculto" id="restaurado" style="margin-top:14px" tabindex="0"></div>
+        <div class="acciones oculto" id="a-restaurado"><button class="btn" onclick="copiar('restaurado')">Copiar respuesta</button></div>
       </details>
-    </section>
-  </div>
+    </div>
 
-  <!-- RESTAURAR -->
-  <div id="p-rest" class="oculto">
-    <section class="card">
-      <h2>Restaurar los datos reales en la respuesta del LLM</h2>
-      <label class="lbl">Conversación</label>
-      <div class="fila" style="margin-top:0">
-        <select id="sel-conv" style="flex:1" onchange="detalleConv()"></select>
-        <button class="btn sec" onclick="cargarConversaciones()">Recargar</button>
-        <button class="btn sec" onclick="borrarConversacion()">Borrar conversación</button>
+    <div class="bloque acciones" style="margin-top:22px">
+      <button class="btn" onclick="reiniciar()">Anonimizar otro documento</button>
+      <button class="btn discreto" onclick="terminar()">Terminar y borrar del NAS</button>
+    </div>
+  </section>
+</div>
+
+<!-- ================= LISTAS ================= -->
+<div id="p-list" class="oculto">
+  <section class="hoja">
+    <h2>Tus listas</h2>
+    <p class="sub">Se aplican a todos los documentos. Una entrada por línea; las líneas que empiezan por # se ignoran.</p>
+    <div class="listas">
+      <div>
+        <h3>Ocultar siempre</h3>
+        <p>Nombres de la familia, vuestra dirección, nº de póliza… Opcional <code>;TIPO</code> (PERSONA, DIRECCION, DATO…).</p>
+        <textarea id="l-terminos" aria-label="Ocultar siempre"></textarea>
       </div>
-      <p class="mut" id="det-conv" style="margin:6px 0 0"></p>
-      <label class="lbl">Pega aquí la respuesta del LLM</label>
-      <textarea id="respuesta" rows="10"></textarea>
-      <div class="fila"><button class="btn" onclick="restaurar()">Restaurar</button></div>
-      <div id="m-rest"></div>
-      <label class="lbl">Respuesta con los datos reales (no la reenvíes al LLM)</label>
-      <textarea id="restaurado" class="grande" readonly></textarea>
-      <div class="fila"><button class="btn sec" onclick="copiar('restaurado')">Copiar</button></div>
-    </section>
-  </div>
-
-  <!-- LISTAS -->
-  <div id="p-list" class="oculto">
-    <section class="card">
-      <h2>Siempre anonimizar</h2>
-      <p class="mut">Nombres de la familia, vuestra dirección, empresa… Se anonimizan siempre aunque el detector no los vea. Una entrada por línea; opcional <code>;TIPO</code> (PERSONA, DIRECCION, DNI, TELEFONO, EMAIL, IBAN, LUGAR, ORGANIZACION, DATO…). Las líneas que empiezan por <code>#</code> se ignoran.</p>
-      <textarea id="l-terminos" rows="12"></textarea>
-    </section>
-    <section class="card">
-      <h2>Nunca anonimizar</h2>
-      <p class="mut">Palabras que el detector marca por error (organismos, bancos, tu ciudad si no te importa que se vea…). Una por línea.</p>
-      <textarea id="l-permitidos" rows="8"></textarea>
-      <div class="fila"><button class="btn" onclick="guardarListas()">Guardar listas</button></div>
-      <div id="m-list"></div>
-    </section>
-  </div>
+      <div>
+        <h3>No ocultar nunca</h3>
+        <p>Organismos, bancos, hospitales… que se marcan por error.</p>
+        <textarea id="l-permitidos" aria-label="No ocultar nunca"></textarea>
+      </div>
+    </div>
+    <div class="acciones"><button class="btn principal" onclick="guardarListas()">Guardar listas</button></div>
+    <div id="m-list"></div>
+  </section>
+</div>
 </main>
 
 <script>
-let job = null, entidades = [];
-document.addEventListener('DOMContentLoaded', () => cargarConversaciones());
+/* ---------- Categorías: color + nombre legible ---------- */
+const CAT = {
+  persona:  { n: 'Personas', v: '--c-persona' },
+  id:       { n: 'Identificadores', v: '--c-id' },
+  contacto: { n: 'Contacto', v: '--c-contacto' },
+  vivienda: { n: 'Direcciones y vivienda', v: '--c-vivienda' },
+  finanzas: { n: 'Cuentas y tarjetas', v: '--c-finanzas' },
+  otros:    { n: 'Organizaciones y fechas', v: '--c-otros' },
+};
+const TIPO = {  // etiqueta del marcador -> [categoría, nombre]
+  PERSONA: ['persona', 'Persona'], DNI: ['id', 'DNI'], NIE: ['id', 'NIE'], NSS: ['id', 'Seguridad Social'],
+  SANITARIO: ['id', 'Tarjeta sanitaria'], REFERENCIA: ['id', 'Póliza / cliente'], MATRICULA: ['id', 'Matrícula'], DATO: ['id', 'Dato'],
+  EMAIL: ['contacto', 'Correo'], TELEFONO: ['contacto', 'Teléfono'], IP: ['contacto', 'IP'],
+  DIRECCION: ['vivienda', 'Dirección'], CP: ['vivienda', 'Código postal'], LUGAR: ['vivienda', 'Lugar'],
+  CATASTRO: ['vivienda', 'Ref. catastral'], CUPS: ['vivienda', 'CUPS'],
+  IBAN: ['finanzas', 'IBAN'], TARJETA: ['finanzas', 'Tarjeta'],
+  ORGANIZACION: ['otros', 'Organización'], FECHA: ['otros', 'Fecha'],
+};
+const catDe = etq => (TIPO[etq] || ['otros', etq])[0];
+const colorDe = etq => `var(${CAT[catDe(etq)].v})`;
+
+let job = null, conv = null, entidades = [], textoSalida = '';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const msg = (id, tipo, html) => { $(id).innerHTML = html ? `<div class="msg ${tipo}">${html}</div>` : ''; };
-
-function pestana(p) {
-  for (const x of ['anon','rest','list']) { $('p-'+x).classList.toggle('oculto', x!==p); $('t-'+x).classList.toggle('on', x===p); }
-  if (p === 'rest') cargarConversaciones();
-  if (p === 'list') cargarListas();
-}
+const msg = (id, tipo, html) => { $(id).innerHTML = html ? `<div class="msg ${tipo}" role="alert">${html}</div>` : ''; };
 
 async function api(url, opts) {
   const r = await fetch(url, opts);
-  const datos = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(datos.detail || `Error ${r.status}`);
-  return datos;
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || `Error ${r.status}`);
+  return d;
+}
+
+/* ---------- Navegación ---------- */
+function pestana(p) {
+  for (const x of ['doc', 'list']) { $('p-' + x).classList.toggle('oculto', x !== p); $('t-' + x).classList.toggle('on', x === p); }
+  if (p === 'list') cargarListas();
+}
+function paso(n) {
+  [1, 2, 3].forEach(i => { $('paso' + i).className = i < n ? 'hecho' : i === n ? 'activo' : ''; });
+  $('s-revisar').classList.toggle('oculto', n < 2);
+  $('s-resultado').classList.toggle('oculto', n < 3);
+  const destino = n === 2 ? 's-revisar' : n === 3 ? 's-resultado' : 's-subir';
+  if (n > 1) $(destino).scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+
+/* ---------- Paso 1: archivo ---------- */
+const zona = $('zona');
+['dragenter', 'dragover'].forEach(e => zona.addEventListener(e, ev => { ev.preventDefault(); zona.classList.add('encima'); }));
+['dragleave', 'drop'].forEach(e => zona.addEventListener(e, () => zona.classList.remove('encima')));
+zona.addEventListener('drop', ev => { ev.preventDefault(); if (ev.dataTransfer.files[0]) { $('archivo').files = ev.dataTransfer.files; elegido(); } });
+$('archivo').addEventListener('change', elegido);
+function elegido() {
+  const f = $('archivo').files[0];
+  $('b-analizar').disabled = !f;
+  if (f) {
+    $('zona-titulo').innerHTML = `<span class="archivo">📄 ${esc(f.name)}</span>`;
+    $('zona-sub').textContent = `${(f.size / 1048576).toFixed(1)} MB · toca para cambiarlo`;
+  }
+}
+
+async function cargarAnteriores() {
+  try {
+    const c = await api('/api/conversaciones');
+    $('conv').innerHTML = '<option value="">Nuevos para este documento</option>' +
+      c.map(x => `<option value="${x.id}">Los mismos que «${esc(x.documentos[0] || x.nombre)}»</option>`).join('');
+  } catch (_) {}
 }
 
 async function analizar() {
   const f = $('archivo').files[0];
-  if (!f) return msg('m-analizar', 'err', 'Selecciona un archivo.');
-  const fd = new FormData(); fd.append('archivo', f); fd.append('terminos', $('terminos').value); fd.append('idioma', $('idioma').value);
-  fd.append('conversacion', $('conv').value); fd.append('nombre_conversacion', $('nombre-conv').value);
-  $('b-analizar').disabled = true; $('e-analizar').textContent = 'Procesando (los escaneados pueden tardar varios minutos)…';
-  msg('m-analizar'); $('c-revision').classList.add('oculto'); $('c-resultado').classList.add('oculto');
+  if (!f) return;
+  const fd = new FormData();
+  fd.append('archivo', f); fd.append('terminos', $('terminos').value); fd.append('idioma', $('idioma').value);
+  fd.append('conversacion', $('conv').value); fd.append('nombre_conversacion', '');
+  $('b-analizar').disabled = true; zona.classList.add('analizando'); msg('m-analizar');
+  $('e-analizar').textContent = /\.(jpe?g|png|tiff?)$/i.test(f.name) ? 'Leyendo la imagen con OCR…' : 'Leyendo el documento…';
+  const t = setTimeout(() => { $('e-analizar').textContent = 'Sigue trabajando: los escaneados tardan más…'; }, 12000);
   try {
     const d = await api('/api/analizar', { method: 'POST', body: fd });
-    job = d.id; entidades = d.entidades;
-    msg('m-analizar', 'ok', `Conversación «${esc(d.nombre_conversacion)}» · ${d.paginas} página(s) · idioma: ${d.idiomas.join(', ')}${d.ocr ? ' · OCR aplicado' : ''} · ${entidades.length} valores detectados.`);
-    const origen = e => e.marcador ? `ya es [${esc(e.marcador)}]` : e.origen === 'lista' ? 'lista'
-      : Math.round(e.score*100) + '%' + (e.origen === 'gliner' ? ' · GLiNER' : '');
-    $('tb-entidades').innerHTML = entidades.map(e => `<tr>
-      <td><input type="checkbox" data-id="${e.id}" ${e.marcado ? 'checked' : ''} ${e.marcador ? 'disabled title="Ya tiene marcador en esta conversación"' : ''}></td>
-      <td>${esc(e.valor)}</td><td><span class="tag">${esc(e.etiqueta)}</span></td>
-      <td>${e.apariciones}</td><td>${origen(e)}</td></tr>`).join('');
-    cargarConversaciones(d.conversacion);
-    $('c-revision').classList.remove('oculto');
-  } catch (e) { msg('m-analizar', 'err', esc(e.message)); }
-  finally { $('b-analizar').disabled = false; $('e-analizar').textContent = ''; }
+    job = d.id; conv = d.conversacion; entidades = d.entidades;
+    pintarRevision(d);
+    paso(2);
+  } catch (e) { msg('m-analizar', 'error', esc(e.message)); }
+  finally { clearTimeout(t); zona.classList.remove('analizando'); $('b-analizar').disabled = false; $('e-analizar').textContent = ''; }
 }
 
-function marcarTodo(v) { document.querySelectorAll('#tb-entidades input:not(:disabled)').forEach(c => c.checked = v); }
+/* ---------- Paso 2: revisión ---------- */
+function pintarRevision(d) {
+  const idiomas = { es: 'español', ca: 'catalán', en: 'inglés' };
+  $('resumen').innerHTML = [
+    `${d.paginas} ${d.paginas === 1 ? 'página' : 'páginas'}`,
+    d.idiomas.map(i => idiomas[i] || i).join(', '),
+    d.ocr ? 'leído con OCR' : null,
+    `${entidades.length} datos encontrados`,
+  ].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('');
+
+  if (!entidades.length) { $('grupos').innerHTML = '<p class="sub">No se ha encontrado ningún dato personal. Si ves alguno, añádelo abajo.</p>'; return; }
+  const porCat = {};
+  entidades.forEach(e => (porCat[catDe(e.etiqueta)] ||= []).push(e));
+  $('grupos').innerHTML = Object.keys(CAT).filter(c => porCat[c]).map(c => `
+    <div class="grupo" style="--c:var(${CAT[c].v})">
+      <div class="grupo-cab"><h3><i></i>${CAT[c].n} <span class="fijo">(${porCat[c].length})</span></h3>
+        <button onclick="grupoTodo('${c}')">Todos / ninguno</button></div>
+      ${porCat[c].map(e => {
+        const ctx = e.contexto || {};
+        const origen = e.marcador ? `ya es [${esc(e.marcador)}]` : e.origen === 'lista' ? 'de tu lista' : TIPO[e.etiqueta]?.[1] || e.etiqueta;
+        return `<label class="dato${e.marcado ? '' : ' apagado'}" data-cat="${c}">
+          <input type="checkbox" data-id="${e.id}" ${e.marcado ? 'checked' : ''} ${e.marcador ? 'disabled' : ''} onchange="this.parentNode.classList.toggle('apagado', !this.checked)">
+          <span class="valor"><mark>${esc(e.valor)}</mark></span>
+          <span class="meta">${esc(origen)}${e.apariciones > 1 ? ` · ${e.apariciones} veces` : ''}</span>
+          <span class="ctx">${esc(ctx.antes || '')}${ctx.antes ? ' ' : ''}<mark>${esc(ctx.valor || e.valor)}</mark>${/^[\p{L}\p{N}(¿¡«"]/u.test(ctx.despues || '') ? ' ' : ''}${esc(ctx.despues || '')}</span>
+        </label>`; }).join('')}
+    </div>`).join('');
+}
+function grupoTodo(c) {
+  const cajas = [...document.querySelectorAll(`.dato[data-cat="${c}"] input:not(:disabled)`)];
+  const marcar = cajas.some(x => !x.checked);
+  cajas.forEach(x => { x.checked = marcar; x.parentNode.classList.toggle('apagado', !marcar); });
+}
 
 async function generar() {
-  const seleccion = [...document.querySelectorAll('#tb-entidades input:checked:not(:disabled)')].map(c => +c.dataset.id);
+  const seleccion = [...document.querySelectorAll('#grupos input:checked:not(:disabled)')].map(c => +c.dataset.id);
   const extra = $('extra').value.split('\n').filter(s => s.trim());
-  $('b-generar').disabled = true; $('e-generar').textContent = 'Generando…';
+  $('b-generar').disabled = true; $('e-generar').textContent = 'Ocultando…';
   try {
-    const d = await api(`/api/generar/${job}`, { method: 'POST', headers: {'Content-Type': 'application/json'},
+    const d = await api(`/api/generar/${job}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ seleccion, extra, instruccion: $('instr').checked }) });
-    $('salida').value = d.texto;
+    textoSalida = d.texto;
+    pintarDocumento(d);
     $('d-pdf').href = `/api/descargar/${job}/tachado.pdf`; $('d-txt').href = `/api/descargar/${job}/texto.txt`;
-    $('tb-mapa').innerHTML = d.mapa.map(m => `<tr><td><span class="tag">[${esc(m.marcador)}]</span></td><td>${esc(m.valor)}</td><td>${m.apariciones}</td></tr>`).join('');
     const problemas = [...d.avisos,
-      ...d.residuales_pdf.map(r => `Sigue en el PDF: «${r.valor}» (${r.apariciones})`),
-      ...d.residuales_texto.map(r => `Sigue en el texto: «${r.valor}» (${r.apariciones})`)];
-    if (problemas.length) msg('m-generar', 'warn', '<b>Revisa antes de enviar:</b><br>' + problemas.map(esc).join('<br>'));
-    else msg('m-generar', 'ok', `${d.mapa.length} valores sustituidos. Verificación automática sin restos. Aun así, lee el texto antes de enviarlo.`);
-    $('c-resultado').classList.remove('oculto');
-    $('c-resultado').scrollIntoView({ behavior: 'smooth' });
-  } catch (e) { msg('m-generar', 'err', esc(e.message)); $('c-resultado').classList.remove('oculto'); }
+      ...d.residuales_pdf.map(r => `Sigue visible en el PDF: «${r.valor}»`),
+      ...d.residuales_texto.map(r => `Sigue visible en el texto: «${r.valor}»`)];
+    msg('m-generar', problemas.length ? 'aviso' : 'ok', problemas.length
+      ? '<b>Revisa antes de enviar.</b><br>' + problemas.map(esc).join('<br>')
+      : `${d.mapa.length} datos ocultos y comprobado que no queda ninguno. Echa un vistazo antes de enviarlo.`);
+    $('restaurar').open = false; $('respuesta').value = ''; $('restaurado').classList.add('oculto'); $('a-restaurado').classList.add('oculto'); msg('m-rest');
+    paso(3);
+  } catch (e) { msg('m-analizar', 'error', esc(e.message)); }
   finally { $('b-generar').disabled = false; $('e-generar').textContent = ''; }
 }
 
-let convs = [];
-async function cargarConversaciones(elegida) {
-  try {
-    convs = await api('/api/conversaciones');
-    const fecha = c => new Date(c.actualizado*1000).toLocaleString('es-ES', {dateStyle:'short', timeStyle:'short'});
-    const opciones = convs.map(c => `<option value="${c.id}">${esc(c.nombre)} — ${c.documentos.length} doc. · ${fecha(c)}</option>`).join('');
-    const prev = $('conv').value;
-    $('conv').innerHTML = '<option value="">➕ Nueva conversación</option>' + opciones;
-    $('conv').value = elegida || (convs.some(c => c.id === prev) ? prev : '');
-    $('nconv').classList.toggle('oculto', !!$('conv').value);
-    const prevR = $('sel-conv').value;
-    $('sel-conv').innerHTML = opciones || '<option value="">No hay conversaciones guardadas</option>';
-    if (elegida || convs.some(c => c.id === prevR)) $('sel-conv').value = elegida || prevR;
-    detalleConv();
-  } catch (e) { msg('m-rest', 'err', esc(e.message)); }
+/* ---------- Paso 3: documento con barras de tinta ---------- */
+function conBarras(texto) {
+  let i = 0;
+  return esc(texto)
+    .replace(/\n*^--- Página (\d+) ---\n/gm, '<span class="pag">Página $1</span>')
+    .replace(/\[([A-Z]+)_(\d+)\]/g, (_, etq, n) =>
+      `<span class="barra" style="--c:${colorDe(etq)};--i:${i++}" title="${esc(TIPO[etq]?.[1] || etq)} ${n}">${etq}_${n}</span>`);
 }
-
-function detalleConv() {
-  const c = convs.find(c => c.id === $('sel-conv').value);
-  $('det-conv').textContent = c ? `Documentos: ${c.documentos.join(', ')} · ${c.marcadores} marcadores` : '';
-}
-
-async function restaurar() {
-  const id = $('sel-conv').value;
-  if (!id) return msg('m-rest', 'err', 'Selecciona una conversación.');
-  try {
-    const d = await api(`/api/restaurar/${id}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ texto: $('respuesta').value }) });
-    $('restaurado').value = d.texto;
-    msg('m-rest', d.desconocidos.length ? 'warn' : 'ok', d.desconocidos.length
-      ? 'Marcadores que no existen en este documento (el LLM los ha inventado o alterado): ' + d.desconocidos.map(esc).join(', ')
-      : 'Restaurado.');
-  } catch (e) { msg('m-rest', 'err', esc(e.message)); }
-}
-
-async function borrarConversacion() {
-  const id = $('sel-conv').value;
-  if (!id || !confirm('¿Borrar esta conversación, sus documentos y su tabla de correspondencias? No se podrá restaurar después.')) return;
-  try { await api(`/api/conversaciones/${id}`, { method: 'DELETE' }); cargarConversaciones(); msg('m-rest', 'ok', 'Borrada.'); }
-  catch (e) { msg('m-rest', 'err', esc(e.message)); }
-}
-
-async function cargarListas() {
-  try { const d = await api('/api/listas'); $('l-terminos').value = d.terminos; $('l-permitidos').value = d.permitidos; msg('m-list'); }
-  catch (e) { msg('m-list', 'err', esc(e.message)); }
-}
-
-async function guardarListas() {
-  try {
-    await api('/api/listas', { method: 'PUT', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ terminos: $('l-terminos').value, permitidos: $('l-permitidos').value }) });
-    msg('m-list', 'ok', 'Guardado. Se aplica a partir del próximo documento que analices.');
-  } catch (e) { msg('m-list', 'err', esc(e.message)); }
+function pintarDocumento(d) {
+  let t = d.texto, nota = '';
+  if (t.startsWith('NOTA:')) { const corte = t.indexOf('\n\n'); nota = t.slice(0, corte); t = t.slice(corte + 2); }
+  $('documento').innerHTML = (nota ? `<span class="nota">${esc(nota)}</span>` : '') + conBarras(t);
+  const cats = [...new Set(d.mapa.map(m => catDe(m.marcador.replace(/_\d+$/, ''))))];
+  $('leyenda').innerHTML = cats.map(c => `<span style="--c:var(${CAT[c].v})"><i></i>${CAT[c].n}</span>`).join('');
 }
 
 async function copiar(id) {
-  // En http:// (sin TLS) el portapapeles moderno no existe: se usa el método clásico
-  if (navigator.clipboard && window.isSecureContext) { try { return await navigator.clipboard.writeText($(id).value); } catch (_) {} }
-  $(id).select(); document.execCommand('copy');
+  const texto = id ? $(id).innerText : textoSalida;
+  const boton = id ? null : $('b-copiar');
+  let ok = false;
+  if (navigator.clipboard && window.isSecureContext) { try { await navigator.clipboard.writeText(texto); ok = true; } catch (_) {} }
+  if (!ok) {  // http:// sin TLS: método clásico
+    const ta = document.createElement('textarea'); ta.value = texto; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, texto.length); ok = document.execCommand('copy'); ta.remove();
+  }
+  if (boton) { const t = boton.textContent; boton.textContent = ok ? 'Copiado' : 'No se pudo copiar'; setTimeout(() => boton.textContent = t, 1800); }
 }
+
+async function restaurar() {
+  if (!conv || !$('respuesta').value.trim()) return msg('m-rest', 'aviso', 'Pega primero la respuesta del LLM.');
+  try {
+    const d = await api(`/api/restaurar/${conv}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto: $('respuesta').value }) });
+    $('restaurado').textContent = d.texto;
+    $('restaurado').classList.remove('oculto'); $('a-restaurado').classList.remove('oculto');
+    msg('m-rest', d.desconocidos.length ? 'aviso' : '', d.desconocidos.length
+      ? 'Estos marcadores no existen en tu documento (el LLM los ha cambiado o inventado): ' + d.desconocidos.map(esc).join(', ') : '');
+  } catch (e) { msg('m-rest', 'error', esc(e.message)); }
+}
+
+function reiniciar() {
+  job = null; conv = null; entidades = []; textoSalida = '';
+  $('archivo').value = ''; $('terminos').value = ''; $('extra').value = '';
+  $('zona-titulo').textContent = 'Suelta aquí un PDF o una foto';
+  $('zona-sub').textContent = 'o púlsalo para elegirlo · PDF, JPG, PNG o TIFF, hasta 50 MB';
+  $('b-analizar').disabled = true; msg('m-analizar');
+  paso(1); window.scrollTo({ top: 0 }); cargarAnteriores();
+}
+async function terminar() {
+  if (conv) { try { await api(`/api/conversaciones/${conv}`, { method: 'DELETE' }); } catch (_) {} }
+  reiniciar();
+  msg('m-analizar', 'ok', 'Borrado del NAS: el documento, el resultado y la tabla de marcadores.');
+}
+
+/* ---------- Listas ---------- */
+async function cargarListas() {
+  try { const d = await api('/api/listas'); $('l-terminos').value = d.terminos; $('l-permitidos').value = d.permitidos; msg('m-list'); }
+  catch (e) { msg('m-list', 'error', esc(e.message)); }
+}
+async function guardarListas() {
+  try {
+    await api('/api/listas', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ terminos: $('l-terminos').value, permitidos: $('l-permitidos').value }) });
+    msg('m-list', 'ok', 'Listas guardadas. Se aplican desde el próximo documento.');
+  } catch (e) { msg('m-list', 'error', esc(e.message)); }
+}
+
+cargarAnteriores();
 </script>
 </body>
 </html>

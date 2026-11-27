@@ -33,7 +33,7 @@ Idiomas: **español** (modelo grande, máxima calidad), **catalán** e **inglés
 
 **Doble detector:** además de spaCy y las reglas, un segundo modelo especializado en datos personales, **GLiNER** (`urchade/gliner_multi_pii-v1`, Apache-2.0, multilingüe), repasa cada página. Encuentra nombres y direcciones que se le escapan al primero, sobre todo en mayúsculas o en tablas. En la tabla de revisión, lo que solo ha encontrado él aparece como «GLiNER». Se desactiva con `GLINER: "0"`.
 
-**Conversaciones:** los documentos que vayas a enviar al mismo chat de Claude o Gemini se agrupan en una conversación y **comparten marcadores**: si Laura es `[PERSONA_2]` en el contrato, también lo es en la factura. La respuesta se restaura eligiendo la conversación.
+**Varios documentos al mismo chat (opcional):** en *Opciones → Marcadores* puedes elegir «Los mismos que …» un documento anterior, para que la misma persona tenga el mismo marcador en ambos. Por defecto cada documento va solo.
 
 **Memoria:** cada modelo (idioma y GLiNER) se carga solo cuando aparece un documento en ese idioma y se libera tras 15 minutos sin uso (`IDLE_SECONDS`). En reposo el contenedor apenas ocupa RAM. El primer documento tras un rato sin usarlo tarda unos segundos más mientras carga el modelo. Las cifras reales de cada versión aparecen en el resumen de la ejecución en GitHub Actions.
 
@@ -111,18 +111,16 @@ Pulsa **Guardar listas**.
 
 ## Cómo se usa
 
-1. **Anonimizar**: elige **Nueva conversación** (o una existente si es para el mismo chat del LLM), sube el PDF o la foto, deja el idioma en *Automático* y pulsa **Analizar**. Un PDF digital tarda segundos; uno escaneado, aproximadamente 5–20 s por página.
-2. **Revisar**: aparece la lista de lo detectado. Desmarca lo que no sea personal y añade abajo lo que falte. Este paso es el importante.
-3. **Generar**: obtienes:
-   - el **texto seudonimizado**, que es lo que copias al LLM (incluye una nota para que respete los marcadores);
-   - el **PDF tachado**, por si necesitas adjuntar el documento visualmente;
-   - un **aviso amarillo** si la verificación automática encuentra algún resto. En ese caso, no envíes nada sin revisarlo.
-4. **Restaurar**: pestaña *Restaurar respuesta*. Elige la conversación, pega la respuesta del LLM y pulsa **Restaurar**: `[PERSONA_1]` vuelve a ser el nombre real. Esa respuesta restaurada **no** se la reenvíes al LLM.
+1. **Subir**: arrastra el PDF o la foto a la zona de subida, o púlsala para elegirlo. Luego pulsa **Buscar datos personales**. Un PDF digital tarda segundos; uno escaneado, aproximadamente 5–20 s por página.
+2. **Revisar**: los datos encontrados aparecen agrupados por tipo y subrayados en colores, cada uno con la frase donde aparece. Desmarca lo que puede quedarse visible y añade lo que falte. Este es el paso importante.
+3. **Copiar al LLM**: verás el documento tal como lo recibirá el LLM, con los datos tapados por barras de tinta. Pulsa **Copiar texto** y pégalo en Claude o Gemini. También puedes descargar el PDF tachado.
+4. **(Opcional) Volver a poner los nombres**: debajo del resultado, en «Ya tengo la respuesta: volver a poner los nombres», pega la respuesta del LLM y los marcadores se cambian por los datos reales solo en tu pantalla. Esa respuesta restaurada **no** se la reenvíes al LLM.
+5. **Terminar y borrar del NAS**: elimina al momento el documento, el resultado y la tabla de marcadores. Si no lo pulsas, se borran solos a las **24 horas** (`RETENTION_DAYS`).
 
 Consejos:
 - Envía al LLM **el texto**, no el PDF: es más fiable y el LLM lo procesa mejor.
 - El mismo valor siempre recibe el mismo marcador dentro de un documento, así que el LLM puede razonar («[PERSONA_1] le debe dinero a [PERSONA_2]»).
-- Los trabajos y sus tablas de correspondencias se borran solos a los **7 días** (`RETENTION_DAYS` en `docker-compose.yml`). Puedes borrarlos antes desde *Restaurar → Borrar conversación*.
+- La interfaz se adapta al móvil y al modo oscuro del sistema.
 
 ## Limitaciones (léelas)
 
@@ -137,8 +135,8 @@ Consejos:
 | Qué | Dónde | Cuánto tiempo |
 |---|---|---|
 | Documento original subido | No se guarda; se borra tras el análisis | — |
-| PDF de trabajo (con datos) y tabla de correspondencias | Volumen Docker `anonimizador_anon_datos` (SSD) | 7 días o hasta que lo borres |
-| Texto y PDF anonimizados | Mismo volumen | 7 días |
+| PDF de trabajo (con datos) y tabla de correspondencias | Volumen Docker `anonimizador_anon_datos` (SSD) | 24 h, o al pulsar «Terminar y borrar» |
+| Texto y PDF anonimizados | Mismo volumen | 24 h |
 | Tus listas | Mismo volumen | Hasta que las cambies |
 | Registros (logs) | Docker; solo peticiones, sin contenido | Rotación de 10 MB |
 

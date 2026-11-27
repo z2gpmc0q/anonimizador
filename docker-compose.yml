@@ -8,7 +8,7 @@ services:
     environment:
       ANON_USER: "anon"
       ANON_PASSWORD: "CAMBIA-ESTO-por-una-clave-larga"   # mínimo 12 caracteres, distinta a la del NAS
-      RETENTION_DAYS: "7"        # días que se guardan los trabajos y sus tablas de correspondencias
+      RETENTION_DAYS: "1"        # se borra todo a las 24 h (o al pulsar «Terminar y borrar»)
       MAX_MB: "50"
       IDLE_SECONDS: "900"        # libera los modelos tras 15 min sin uso (0 = nunca)
       GLINER: "1"                # segundo detector de datos personales (0 = desactivado)
