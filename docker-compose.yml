@@ -2,7 +2,7 @@
 # Antes de desplegar, cambia ANON_PASSWORD.
 services:
   anonimizador:
-    image: ghcr.io/z2gpmc0q/anonimizador:latest
+    image: ghcr.io/z2gpmc0q/anonimizador:v1.0.0   # versión fija: para actualizar, cambia el número
     container_name: anonimizador
     restart: unless-stopped
     environment:

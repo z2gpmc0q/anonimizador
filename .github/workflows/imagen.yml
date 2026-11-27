@@ -4,13 +4,14 @@ name: Construir, probar y publicar
 on:
   push:
     branches: [main]
+    tags: ["v*"]            # una etiqueta vX.Y.Z publica una versión numerada
   pull_request:
   workflow_dispatch:
   schedule:
     - cron: "17 4 * * 1"   # cada lunes: reconstruye con parches de seguridad de la imagen base
 
 permissions:
-  contents: read
+  contents: write           # para crear la «release» en GitHub
   packages: write
 
 env:
@@ -108,5 +109,16 @@ jobs:
           tags: |
             ${{ env.IMAGEN }}:latest
             ${{ env.IMAGEN }}:${{ github.sha }}
+            ${{ startsWith(github.ref, 'refs/tags/v') && format('{0}:{1}', env.IMAGEN, github.ref_name) || '' }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           cache-from: type=gha
+
+      - name: Crear la versión en GitHub (solo con etiqueta vX.Y.Z)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Notas: la sección de esta versión en CHANGELOG.md
+          awk -v v="## $GITHUB_REF_NAME" '$0 ~ "^## " {p = (index($0, v) == 1)} p' CHANGELOG.md > notas.md
+          echo -e "\n**Imagen:** \`${IMAGEN}:${GITHUB_REF_NAME}\`" >> notas.md
+          gh release create "$GITHUB_REF_NAME" --title "Anonimizador $GITHUB_REF_NAME" --notes-file notas.md

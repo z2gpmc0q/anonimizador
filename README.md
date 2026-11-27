@@ -149,7 +149,10 @@ Lo único que hay en GitHub es el código y la imagen, públicos y sin datos tuy
 
 ## Mantenimiento
 
-- **Actualizar**: GitHub publica una imagen probada cada lunes. Para instalarla, en la app Docker de UGOS abre el proyecto `anonimizador` y vuelve a desplegarlo (o usa la opción de actualizar la imagen y reiniciar, según tu versión de UGOS). Basta una vez al mes. Los datos y las listas se conservan.
+- **Versiones**: el compose usa una versión fija (`…/anonimizador:v1.0.0`). Cada versión nueva aparece en la sección **Releases** del repositorio, con sus cambios (también en `CHANGELOG.md`).
+- **Actualizar**: en la app Docker de UGOS, edita el proyecto `anonimizador`, cambia el número de versión en la línea `image:` y vuelve a desplegarlo. Al cambiar el número, UGOS descarga la imagen nueva sí o sí. Los datos y las listas se conservan.
+- **Volver atrás**: si una versión da problemas, pon el número anterior y despliega de nuevo.
+- **Sin Internet**: la app no hace conexiones salientes (GitHub lo prueba en una red sin salida). No uses `networks: internal: true` en el compose: esa red impide publicar el puerto 8010 y dejarías de poder abrir la web.
 - **Estado**: en la app Docker, el contenedor debe aparecer en ejecución (*healthy*).
 - **Copia de seguridad**: los trabajos son temporales y no necesitan copia. Si tus listas son largas, copia su contenido de vez en cuando a un archivo de tu carpeta de usuario.
 
