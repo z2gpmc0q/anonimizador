@@ -138,6 +138,32 @@ textarea { resize: vertical; }
 .dato.apagado .valor mark { background: none; text-decoration: line-through; }
 .fijo { font-size: 12px; color: var(--gris); }
 
+/* ===== Revisión sobre el documento ===== */
+.vistas { display: inline-flex; gap: 2px; background: var(--papel); border: 1px solid var(--linea); border-radius: 999px; padding: 3px; margin-bottom: 14px; }
+.vistas button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--gris); font-size: 14px; }
+.vistas button.on { background: var(--hoja); color: var(--tinta); box-shadow: 0 0 0 1px var(--linea); }
+.ayuda { color: var(--gris); font-size: 14px; margin: 0 0 10px; }
+.previa { max-height: 70vh; }
+.previa mark.hl { background: var(--c); color: #1C2433; border-radius: 3px; padding: 1px 2px; cursor: pointer;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.previa mark.hl:hover { outline: 2px solid var(--tinta); }
+.previa mark.hl.off { background: none; color: inherit; outline: 1.5px dashed var(--c); outline-offset: -1px; opacity: .75; }
+.previa mark.hl.tuyo { box-shadow: inset 0 -3px 0 var(--tinta); }
+.previa ::selection { background: color-mix(in srgb, var(--c-vivienda) 60%, transparent); }
+.anadidos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; font-size: 14px; color: var(--gris); }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--c); color: #1C2433; border-radius: 999px; padding: 3px 4px 3px 11px; font-size: 14px; }
+.chip button { border: 0; background: none; cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 6px; border-radius: 999px; color: inherit; }
+.chip button:hover { background: rgba(0,0,0,.12); }
+/* barra que aparece al seleccionar texto */
+.barra-sel { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 20;
+  width: min(640px, calc(100% - 24px)); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 10px 10px 16px;
+  background: var(--tinta); color: var(--papel); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+body.con-barra main { padding-bottom: 140px; }
+.barra-sel .sel-txt { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--serif); }
+.barra-sel select { width: auto; flex: none; background: var(--papel); color: var(--tinta); border: 0; }
+.barra-sel .btn.principal { background: var(--c-persona); color: #1C2433; border-color: var(--c-persona); min-height: 40px; padding: 8px 16px; }
+.barra-sel .btn.discreto { color: var(--papel); min-height: 40px; }
+
 /* ===== Resultado: documento con barras de tinta ===== */
 .documento { font-family: var(--serif); font-size: 16.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word;
   background: var(--papel); border: 1px solid var(--linea); border-radius: 12px; padding: 22px 24px; max-height: 62vh; overflow: auto; }
@@ -239,8 +265,17 @@ textarea { resize: vertical; }
     <h2>Revisa lo que se va a ocultar</h2>
     <p class="sub">Desmarca lo que puede quedarse visible. Si falta algo, añádelo abajo.</p>
     <div class="resumen" id="resumen"></div>
-    <div id="grupos"></div>
-    <label class="campo" style="margin-top:14px">Falta algo (uno por línea)
+    <div class="vistas" role="tablist" aria-label="Forma de revisar">
+      <button id="v-doc" class="on" role="tab" onclick="vista('doc')">En el documento</button>
+      <button id="v-lista" role="tab" onclick="vista('lista')">Como lista</button>
+    </div>
+    <div id="vista-doc">
+      <p class="ayuda">Pulsa un dato resaltado para dejarlo visible. Selecciona cualquier otro texto para ocultarlo también.</p>
+      <div class="documento previa" id="previa" tabindex="0" aria-label="Documento con los datos resaltados"></div>
+      <div class="anadidos" id="anadidos"></div>
+    </div>
+    <div id="vista-lista" class="oculto"><div id="grupos"></div></div>
+    <label class="campo" style="margin-top:14px">Escribir a mano lo que falte (uno por línea)
       <textarea id="extra" rows="2" placeholder="Txema;PERSONA"></textarea></label>
     <label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-size:15px">
       <input type="checkbox" id="instr" checked style="width:18px;height:18px;accent-color:var(--tinta)">
@@ -282,6 +317,17 @@ textarea { resize: vertical; }
       <button class="btn discreto" onclick="terminar()">Terminar y borrar del NAS</button>
     </div>
   </section>
+</div>
+
+<div class="barra-sel oculto" id="barra-sel" role="dialog" aria-label="Ocultar el texto seleccionado">
+  <span class="sel-txt" id="sel-txt"></span>
+  <select id="sel-tipo" aria-label="Tipo de dato">
+    <option value="PERSONA">Persona</option><option value="DIRECCION">Dirección</option><option value="LUGAR">Lugar</option>
+    <option value="TELEFONO">Teléfono</option><option value="EMAIL">Correo</option><option value="ORGANIZACION">Organización</option>
+    <option value="FECHA">Fecha</option><option value="DATO">Otro dato</option>
+  </select>
+  <button class="btn principal" onclick="anadirSeleccion()">Ocultar</button>
+  <button class="btn discreto" onclick="cerrarSel()" aria-label="Cancelar">✕</button>
 </div>
 
 <!-- ================= LISTAS ================= -->
@@ -329,7 +375,7 @@ const TIPO = {  // etiqueta del marcador -> [categoría, nombre]
 const catDe = etq => (TIPO[etq] || ['otros', etq])[0];
 const colorDe = etq => `var(${CAT[catDe(etq)].v})`;
 
-let job = null, conv = null, entidades = [], textoSalida = '';
+let job = null, conv = null, entidades = [], textoSalida = '', textoDoc = '', anadidos = [], seleccion = '';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const msg = (id, tipo, html) => { $(id).innerHTML = html ? `<div class="msg ${tipo}" role="alert">${html}</div>` : ''; };
@@ -388,8 +434,8 @@ async function analizar() {
   const t = setTimeout(() => { $('e-analizar').textContent = 'Sigue trabajando: los escaneados tardan más…'; }, 12000);
   try {
     const d = await api('/api/analizar', { method: 'POST', body: fd });
-    job = d.id; conv = d.conversacion; entidades = d.entidades;
-    pintarRevision(d);
+    job = d.id; conv = d.conversacion; entidades = d.entidades; textoDoc = d.texto || ''; anadidos = [];
+    pintarRevision(d); pintarPrevia(); vista('doc');
     paso(2);
   } catch (e) { msg('m-analizar', 'error', esc(e.message)); }
   finally { clearTimeout(t); zona.classList.remove('analizando'); $('b-analizar').disabled = false; $('e-analizar').textContent = ''; }
@@ -416,7 +462,7 @@ function pintarRevision(d) {
         const ctx = e.contexto || {};
         const origen = e.marcador ? `ya es [${esc(e.marcador)}]` : e.origen === 'lista' ? 'de tu lista' : TIPO[e.etiqueta]?.[1] || e.etiqueta;
         return `<label class="dato${e.marcado ? '' : ' apagado'}" data-cat="${c}">
-          <input type="checkbox" data-id="${e.id}" ${e.marcado ? 'checked' : ''} ${e.marcador ? 'disabled' : ''} onchange="this.parentNode.classList.toggle('apagado', !this.checked)">
+          <input type="checkbox" data-id="${e.id}" ${e.marcado ? 'checked' : ''} ${e.marcador ? 'disabled' : ''} onchange="cambiar(${e.id}, this.checked)">
           <span class="valor"><mark>${esc(e.valor)}</mark></span>
           <span class="meta">${esc(origen)}${e.apariciones > 1 ? ` · ${e.apariciones} veces` : ''}</span>
           <span class="ctx">${esc(ctx.antes || '')}${ctx.antes ? ' ' : ''}<mark>${esc(ctx.valor || e.valor)}</mark>${/^[\p{L}\p{N}(¿¡«"]/u.test(ctx.despues || '') ? ' ' : ''}${esc(ctx.despues || '')}</span>
@@ -426,16 +472,104 @@ function pintarRevision(d) {
 function grupoTodo(c) {
   const cajas = [...document.querySelectorAll(`.dato[data-cat="${c}"] input:not(:disabled)`)];
   const marcar = cajas.some(x => !x.checked);
-  cajas.forEach(x => { x.checked = marcar; x.parentNode.classList.toggle('apagado', !marcar); });
+  cajas.forEach(x => cambiar(+x.dataset.id, marcar, true));
+  pintarPrevia();
+}
+/* Estado único: entidades[].marcado. La lista y el documento se sincronizan desde aquí. */
+function cambiar(id, valor, sinPintar) {
+  const e = entidades.find(x => x.id === id);
+  if (!e || e.marcador) return;
+  e.marcado = valor;
+  const caja = document.querySelector(`#grupos input[data-id="${id}"]`);
+  if (caja) { caja.checked = valor; caja.closest('.dato').classList.toggle('apagado', !valor); }
+  if (!sinPintar) pintarPrevia();
+}
+function vista(v) {
+  $('vista-doc').classList.toggle('oculto', v !== 'doc'); $('vista-lista').classList.toggle('oculto', v !== 'lista');
+  $('v-doc').classList.toggle('on', v === 'doc'); $('v-lista').classList.toggle('on', v === 'lista');
+  if (v !== 'doc') cerrarSel();
 }
 
+/* ---------- Vista de documento: resaltado + selección ---------- */
+const escRx = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const rxValor = v => new RegExp('(?<![\\p{L}\\p{N}_])' + v.trim().split(/\s+/).map(escRx).join('\\s+') + '(?![\\p{L}\\p{N}_])', 'giu');
+const fmtTexto = t => esc(t).replace(/\n*^--- Página (\d+) ---\n/gm, '<span class="pag">Página $1</span>');
+
+function pintarPrevia() {
+  if (!textoDoc) { $('previa').innerHTML = '<span class="nota">No hay texto que mostrar.</span>'; return; }
+  const items = entidades.map(e => ({ valor: e.valor, etq: e.etiqueta, id: e.id, on: e.marcado, fijo: !!e.marcador }))
+    .concat(anadidos.map((a, k) => ({ valor: a.valor, etq: a.tipo, extra: k, on: true })));
+  const hits = [];
+  for (const it of items) {
+    let re; try { re = rxValor(it.valor); } catch (_) { continue; }
+    for (const m of textoDoc.matchAll(re)) hits.push({ s: m.index, e: m.index + m[0].length, it });
+  }
+  hits.sort((a, b) => a.s - b.s || (b.e - b.s) - (a.e - a.s));
+  let html = '', pos = 0;
+  for (const h of hits) {
+    if (h.s < pos) continue;
+    const it = h.it, nombre = TIPO[it.etq]?.[1] || it.etq;
+    const ayuda = it.extra !== undefined ? `${nombre} · añadido por ti · pulsa para quitarlo`
+      : it.fijo ? `${nombre} · ya tiene marcador` : `${nombre} · pulsa para ${it.on ? 'dejarlo visible' : 'ocultarlo'}`;
+    html += fmtTexto(textoDoc.slice(pos, h.s)) +
+      `<mark class="hl${it.on ? '' : ' off'}${it.extra !== undefined ? ' tuyo' : ''}" style="--c:${colorDe(it.etq)}" ` +
+      (it.extra !== undefined ? `data-extra="${it.extra}"` : `data-id="${it.id}"`) + ` title="${esc(ayuda)}">${esc(textoDoc.slice(h.s, h.e))}</mark>`;
+    pos = h.e;
+  }
+  $('previa').innerHTML = html + fmtTexto(textoDoc.slice(pos));
+  $('anadidos').innerHTML = anadidos.length ? 'Añadidos por ti:' + anadidos.map((a, k) =>
+    `<span class="chip" style="--c:${colorDe(a.tipo)}">${esc(a.valor)}<button onclick="quitarAnadido(${k})" aria-label="Quitar ${esc(a.valor)}">×</button></span>`).join('') : '';
+}
+
+$('previa').addEventListener('click', ev => {
+  const m = ev.target.closest('mark.hl');
+  if (!m || !window.getSelection().isCollapsed) return;
+  if (m.dataset.extra !== undefined) return quitarAnadido(+m.dataset.extra);
+  const e = entidades.find(x => x.id === +m.dataset.id);
+  if (e) cambiar(e.id, !e.marcado);
+});
+
+let tSel;
+document.addEventListener('selectionchange', () => {
+  clearTimeout(tSel);
+  tSel = setTimeout(() => {
+    const sel = window.getSelection();
+    if (!sel.rangeCount || sel.isCollapsed) return;
+    const nodo = sel.getRangeAt(0).commonAncestorContainer;
+    if (!$('previa').contains(nodo.nodeType === 1 ? nodo : nodo.parentNode)) return;
+    const t = sel.toString().replace(/\s+/g, ' ').trim().replace(/^[\s.,;:()«»"']+|[\s.,;:()«»"']+$/g, '');
+    if (t.length < 2 || t.length > 120) return;
+    seleccion = t;
+    $('sel-txt').textContent = `Ocultar «${t}»`;
+    $('sel-tipo').value = adivinaTipo(t);
+    $('barra-sel').classList.remove('oculto'); document.body.classList.add('con-barra');
+  }, 250);
+});
+function adivinaTipo(t) {
+  if (/@/.test(t)) return 'EMAIL';
+  if (/^\+?[\d\s-]{9,}$/.test(t)) return 'TELEFONO';
+  if (/^(c\/|calle|carrer|avda|avenida|avinguda|plaza|plaça|paseo|passeig)\b/i.test(t)) return 'DIRECCION';
+  if (/\d/.test(t)) return 'DATO';
+  if (/^(\p{Lu}[\p{L}'-]+)(\s+(de|del|la|i|y)?\s*\p{Lu}[\p{L}'-]+)*$/u.test(t)) return 'PERSONA';
+  return 'DATO';
+}
+function anadirSeleccion() {
+  if (seleccion && !anadidos.some(a => a.valor.toLowerCase() === seleccion.toLowerCase()))
+    anadidos.push({ valor: seleccion, tipo: $('sel-tipo').value });
+  window.getSelection().removeAllRanges();
+  cerrarSel(); pintarPrevia();
+}
+function quitarAnadido(k) { anadidos.splice(k, 1); pintarPrevia(); }
+function cerrarSel() { seleccion = ''; $('barra-sel').classList.add('oculto'); document.body.classList.remove('con-barra'); }
+
 async function generar() {
-  const seleccion = [...document.querySelectorAll('#grupos input:checked:not(:disabled)')].map(c => +c.dataset.id);
-  const extra = $('extra').value.split('\n').filter(s => s.trim());
+  const ids = entidades.filter(e => e.marcado && !e.marcador).map(e => e.id);
+  const extra = $('extra').value.split('\n').filter(s => s.trim()).concat(anadidos.map(a => `${a.valor};${a.tipo}`));
+  cerrarSel();
   $('b-generar').disabled = true; $('e-generar').textContent = 'Ocultando…';
   try {
     const d = await api(`/api/generar/${job}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seleccion, extra, instruccion: $('instr').checked }) });
+      body: JSON.stringify({ seleccion: ids, extra, instruccion: $('instr').checked }) });
     textoSalida = d.texto;
     pintarDocumento(d);
     $('d-pdf').href = `/api/descargar/${job}/tachado.pdf`; $('d-txt').href = `/api/descargar/${job}/texto.txt`;
@@ -493,7 +627,7 @@ async function restaurar() {
 }
 
 function reiniciar() {
-  job = null; conv = null; entidades = []; textoSalida = '';
+  job = null; conv = null; entidades = []; textoSalida = ''; textoDoc = ''; anadidos = []; cerrarSel();
   $('archivo').value = ''; $('terminos').value = ''; $('extra').value = '';
   $('zona-titulo').textContent = 'Suelta aquí un PDF o una foto';
   $('zona-sub').textContent = 'o púlsalo para elegirlo · PDF, JPG, PNG o TIFF, hasta 50 MB';

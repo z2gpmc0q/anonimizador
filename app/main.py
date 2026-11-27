@@ -195,7 +195,7 @@ def analizar(archivo: UploadFile = File(...), terminos: str = Form(""), idioma: 
     _escribe(d, "info.json", info)
     _escribe(d, "paginas.json", paginas)
     _escribe(d, "entidades.json", entidades)
-    return {**info, "entidades": entidades}
+    return {**info, "entidades": entidades, "texto": texto}
 
 
 class PeticionGenerar(BaseModel):

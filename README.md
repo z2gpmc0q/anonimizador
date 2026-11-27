@@ -112,7 +112,10 @@ Pulsa **Guardar listas**.
 ## Cómo se usa
 
 1. **Subir**: arrastra el PDF o la foto a la zona de subida, o púlsala para elegirlo. Luego pulsa **Buscar datos personales**. Un PDF digital tarda segundos; uno escaneado, aproximadamente 5–20 s por página.
-2. **Revisar**: los datos encontrados aparecen agrupados por tipo y subrayados en colores, cada uno con la frase donde aparece. Desmarca lo que puede quedarse visible y añade lo que falte. Este es el paso importante.
+2. **Revisar**: ves el documento entero con los datos encontrados resaltados en colores según su tipo. Este es el paso importante:
+   - **pulsa un dato resaltado** para dejarlo visible (queda con borde discontinuo); vuelve a pulsarlo para ocultarlo;
+   - **selecciona con el ratón o el dedo cualquier otro texto** y en la barra que aparece abajo elige el tipo y pulsa **Ocultar**. Se oculta en todo el documento;
+   - si lo prefieres, en **Como lista** tienes los mismos datos agrupados por tipo, con la frase donde aparece cada uno.
 3. **Copiar al LLM**: verás el documento tal como lo recibirá el LLM, con los datos tapados por barras de tinta. Pulsa **Copiar texto** y pégalo en Claude o Gemini. También puedes descargar el PDF tachado.
 4. **(Opcional) Volver a poner los nombres**: debajo del resultado, en «Ya tengo la respuesta: volver a poner los nombres», pega la respuesta del LLM y los marcadores se cambian por los datos reales solo en tu pantalla. Esa respuesta restaurada **no** se la reenvíes al LLM.
 5. **Terminar y borrar del NAS**: elimina al momento el documento, el resultado y la tabla de marcadores. Si no lo pulsas, se borran solos a las **24 horas** (`RETENTION_DAYS`).
